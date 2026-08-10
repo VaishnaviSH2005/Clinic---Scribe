@@ -1,0 +1,25 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libpq-dev ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# The worker container is the only place the heavy AI/ML dependencies are
+# installed (PRD Ch4.6 / ai-services/README.md) — the `backend` API
+# container stays on requirements.txt alone and never imports ai-services.
+COPY backend/requirements.txt backend/requirements.txt
+COPY ai-services/requirements.txt ai-services/requirements.txt
+RUN pip install -r backend/requirements.txt -r ai-services/requirements.txt
+
+COPY backend/app backend/app
+COPY ai-services ai-services
+
+WORKDIR /app/backend
+
+CMD ["python", "-m", "app.workers.pipeline_worker"]

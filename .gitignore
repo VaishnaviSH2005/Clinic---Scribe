@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Next.js
+.next/
+out/
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+
+# Build output
+dist/
+build/
+*.egg-info/
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.pytest_cache/
+htmlcov/
+
+# Alembic (keep versions, ignore local db)
+*.sqlite3
+
+# Docker
+docker/data/
+
+# Local file storage (PRD Ch3.9 dev backend — uploaded documents)
+backend/storage/

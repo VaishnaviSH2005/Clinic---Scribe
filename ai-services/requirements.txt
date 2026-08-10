@@ -1,0 +1,16 @@
+# AI services dependencies (PRD Ch3.6). Installed separately from the
+# backend so heavy ML packages don't bloat the API container image — the
+# `worker` service (infrastructure/docker/docker-compose.yml) installs both
+# this file and backend/requirements.txt; the `backend` API container
+# installs backend/requirements.txt only.
+faster-whisper==1.2.1
+langgraph==1.2.10
+anthropic==0.121.0
+pydantic==2.10.4
+
+# Medical entity extraction (nlp/entity_extractor.py) uses a curated
+# keyword/phrase matcher rather than SciSpaCy+MedCAT in this milestone:
+# MedCAT requires a UMLS-licensed concept database/vocab model pack that
+# cannot be obtained without UMLS credentialing (a licensing constraint,
+# not a dependency-install issue). scispacy/spacy are omitted until that
+# license is available; the extractor interface is unchanged either way.

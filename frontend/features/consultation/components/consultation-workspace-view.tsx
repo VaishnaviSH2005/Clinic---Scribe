@@ -20,6 +20,23 @@ import { PatientContextPanel } from "./patient-context-panel";
 import { RecordingStatusCard } from "./recording-status-card";
 import { TranscriptPanel } from "./transcript-panel";
 
+function getAudioDurationSeconds(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    const audio = document.createElement("audio");
+    const url = URL.createObjectURL(file);
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => {
+      URL.revokeObjectURL(url);
+      resolve(Number.isFinite(audio.duration) ? Math.round(audio.duration) : 0);
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(0);
+    };
+    audio.src = url;
+  });
+}
+
 export function ConsultationWorkspaceView({ consultationId }: { consultationId: string }) {
   const { data, isLoading, isError } = useConsultationWorkspace(consultationId);
   const actions = useConsultationActions(consultationId);
@@ -86,6 +103,14 @@ export function ConsultationWorkspaceView({ consultationId }: { consultationId: 
     await actions.stop.mutateAsync({ audioBlob: blob, durationSeconds: recorder.elapsedSeconds });
   };
 
+  const handleUploadRecording = async (file: File) => {
+    if (consultation.status === "draft") {
+      await actions.resume.mutateAsync();
+    }
+    const durationSeconds = await getAudioDurationSeconds(file);
+    await actions.stop.mutateAsync({ audioBlob: file, durationSeconds });
+  };
+
   const handleSaveDraft = async () => {
     if (recorder.status === "recording" || recorder.status === "paused") {
       const blob = await recorder.stop();
@@ -145,6 +170,7 @@ export function ConsultationWorkspaceView({ consultationId }: { consultationId: 
         onPause={handlePause}
         onResume={handleResume}
         onStop={() => void handleStop()}
+        onUploadRecording={(file) => void handleUploadRecording(file)}
         onSaveDraft={() => void handleSaveDraft()}
         onApprove={() => actions.approve.mutate()}
         onCancel={() => setCancelOpen(true)}

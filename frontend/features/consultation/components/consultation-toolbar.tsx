@@ -1,4 +1,5 @@
-import { Mic, Pause, Play, Save, Square, X, Check } from "lucide-react";
+import { useRef } from "react";
+import { Mic, Pause, Play, Save, Square, Upload, X, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { ConsultationStatus } from "@/types/consultation";
@@ -13,10 +14,13 @@ interface ConsultationToolbarProps {
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
+  onUploadRecording: (file: File) => void;
   onSaveDraft: () => void;
   onApprove: () => void;
   onCancel: () => void;
 }
+
+const ACCEPTED_AUDIO_TYPES = "audio/webm,audio/ogg,audio/mp4,audio/mpeg,audio/wav,audio/x-wav";
 
 // Bottom Toolbar (PRD Ch9.11). Approve remains disabled until the
 // consultation reaches `pending_review` (i.e. recording has been stopped) —
@@ -30,6 +34,7 @@ export function ConsultationToolbar({
   onPause,
   onResume,
   onStop,
+  onUploadRecording,
   onSaveDraft,
   onApprove,
   onCancel,
@@ -37,6 +42,13 @@ export function ConsultationToolbar({
   const isReadOnly = consultationStatus === "approved";
   const canRecord = !isReadOnly && consultationStatus !== "pending_review";
   const canApprove = consultationStatus === "pending_review";
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) onUploadRecording(file);
+  };
 
   return (
     <div className="flex items-center justify-between border-t border-border bg-surface px-6 py-4">
@@ -45,6 +57,24 @@ export function ConsultationToolbar({
           <Button onClick={onStartRecording} loading={isBusy}>
             <Mic className="h-4 w-4" /> Start recording
           </Button>
+        )}
+        {canRecord && recorderStatus === "idle" && (
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => fileInputRef.current?.click()}
+              loading={isBusy}
+            >
+              <Upload className="h-4 w-4" /> Upload recording
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_AUDIO_TYPES}
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </>
         )}
         {canRecord && recorderStatus === "recording" && (
           <Button variant="secondary" onClick={onPause} loading={isBusy}>

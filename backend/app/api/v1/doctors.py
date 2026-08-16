@@ -55,7 +55,9 @@ async def list_doctors(
     status: UserStatus | None = Query(default=None),
     search: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    current: CurrentUser = Depends(require_roles(RoleName.hospital_admin)),
+    current: CurrentUser = Depends(
+        require_roles(RoleName.hospital_admin, RoleName.doctor, RoleName.receptionist)
+    ),
 ) -> ApiListResponse[UserOut]:
     doctors, total = await user_service.list_users(
         db,

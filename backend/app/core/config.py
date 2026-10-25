@@ -6,7 +6,11 @@ always import `settings` from this module instead.
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_DEFAULT_JWT_SECRET = "change-me-in-production"
+_DEV_ENVIRONMENTS = frozenset({"development", "dev", "local", "test"})
 
 
 class Settings(BaseSettings):
@@ -22,7 +26,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # Auth (PRD Ch7 / Ch20)
-    jwt_secret: str = "change-me-in-production"
+    jwt_secret: str = _DEFAULT_JWT_SECRET
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
@@ -70,6 +74,27 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def is_development(self) -> bool:
+        return self.environment.lower() in _DEV_ENVIRONMENTS
+
+    @model_validator(mode="after")
+    def _reject_insecure_non_development_config(self) -> "Settings":
+        """Refuse to start outside development with development defaults."""
+        if self.is_development:
+            return self
+        problems = []
+        if self.jwt_secret == _DEFAULT_JWT_SECRET or len(self.jwt_secret) < 32:
+            problems.append("JWT_SECRET must be a random value of at least 32 characters")
+        if self.debug:
+            problems.append("DEBUG must be false")
+        if not self.cookie_secure:
+            problems.append("COOKIE_SECURE must be true")
+        if problems:
+            detail = "; ".join(problems)
+            raise ValueError(f"Insecure configuration for ENVIRONMENT={self.environment!r}: {detail}")
+        return self
 
 
 @lru_cache

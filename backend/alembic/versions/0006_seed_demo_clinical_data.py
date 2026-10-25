@@ -9,6 +9,8 @@ Create Date: 2026-08-14T00:10:00+00:00
 
 from alembic import op
 
+from app.core.config import settings
+
 revision = "0006_seed_demo_clinical_data"
 down_revision = "0005_seed_demo_users"
 branch_labels = None
@@ -64,6 +66,8 @@ PATIENTS = [
 
 
 def upgrade() -> None:
+    if not settings.is_development:
+        return  # dev/demo seed data is only created in development environments
     for name in DEPARTMENTS:
         op.execute(
             f"""

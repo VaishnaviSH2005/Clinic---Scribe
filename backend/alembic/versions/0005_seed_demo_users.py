@@ -11,6 +11,8 @@ Create Date: 2026-08-14T00:00:00+00:00
 
 from alembic import op
 
+from app.core.config import settings
+
 revision = "0005_seed_demo_users"
 down_revision = "0004_seed_super_admin"
 branch_labels = None
@@ -31,6 +33,8 @@ DEMO_USERS = [
 
 
 def upgrade() -> None:
+    if not settings.is_development:
+        return  # dev/demo seed data is only created in development environments
     op.execute(
         f"""
         INSERT INTO hospitals (id, name, registration_number, email, phone, status, created_at, updated_at)

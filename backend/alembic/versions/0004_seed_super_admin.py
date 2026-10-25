@@ -11,6 +11,8 @@ Create Date: 2026-08-08T00:10:00+00:00
 
 from alembic import op
 
+from app.core.config import settings
+
 revision = "0004_seed_super_admin"
 down_revision = "0003_extend_sessions"
 branch_labels = None
@@ -22,6 +24,8 @@ SUPER_ADMIN_PASSWORD_HASH = "$argon2id$v=19$m=65536,t=3,p=4$FkN6Ets33XyqacbKJvm9
 
 
 def upgrade() -> None:
+    if not settings.is_development:
+        return  # dev/demo seed data is only created in development environments
     op.execute(
         f"""
         INSERT INTO users (id, hospital_id, role_id, department_id, full_name, email, phone,

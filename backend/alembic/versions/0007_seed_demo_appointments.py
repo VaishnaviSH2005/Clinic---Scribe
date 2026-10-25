@@ -9,6 +9,8 @@ Create Date: 2026-08-15T00:00:00+00:00
 
 from alembic import op
 
+from app.core.config import settings
+
 revision = "0007_seed_demo_appointments"
 down_revision = "0006_seed_demo_clinical_data"
 branch_labels = None
@@ -25,6 +27,8 @@ APPOINTMENTS = [
 
 
 def upgrade() -> None:
+    if not settings.is_development:
+        return  # dev/demo seed data is only created in development environments
     for doctor_email, uhid, status, hours_offset in APPOINTMENTS:
         checked_in_at_expr = "now()" if status == "checked_in" else "NULL"
         op.execute(

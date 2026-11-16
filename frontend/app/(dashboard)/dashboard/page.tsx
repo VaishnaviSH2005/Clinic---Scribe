@@ -13,6 +13,13 @@ import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 import { useAuth } from "@/features/authentication/hooks/use-auth";
 import { formatDateTime } from "@/lib/date";
 
+// "Dr. Asha Rao" -> "Dr. Asha" (not just "Dr."); "Hospital Admin" -> "Hospital".
+function friendlyName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  const honorific = /^(dr|mr|mrs|ms|prof)\.?$/i;
+  return honorific.test(parts[0] ?? "") && parts[1] ? `${parts[0]} ${parts[1]}` : (parts[0] ?? "");
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { data, isLoading, isError } = useDashboard();
@@ -44,7 +51,7 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-h2 text-text-primary">
-          Welcome back{user ? `, ${user.name.split(" ")[0]}` : ""}
+          Welcome back{user ? `, ${friendlyName(user.name)}` : ""}
         </h1>
         <p className="mt-1 text-body text-text-secondary">Here is what&apos;s happening today.</p>
       </div>

@@ -73,7 +73,9 @@ async def get_analytics(
         ai_outcomes = {}
         by_doctor = []
         by_department = []
-        reports_generated = 0
+        reports_generated = await repo.reports_generated(
+            hospital_id, date_from=date_from, date_to=date_to, doctor_id=user_id
+        )
         missed_rate = 0.0
     else:
         new_patients_per_day = await repo.new_patients_per_day(hospital_id, date_from=date_from, date_to=date_to)

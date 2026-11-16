@@ -163,16 +163,19 @@ class AnalyticsRepository:
         )
         return [(row[0], row[1]) for row in result.all()]
 
-    async def reports_generated(self, hospital_id: uuid.UUID | None, *, date_from: date, date_to: date) -> int:
+    async def reports_generated(
+        self, hospital_id: uuid.UUID | None, *, date_from: date, date_to: date, doctor_id: uuid.UUID | None = None
+    ) -> int:
         start, end = _bounds(date_from, date_to)
-        result = await self.db.execute(
-            select(func.count()).where(
-                _in_scope(Report.hospital_id, hospital_id),
-                Report.created_at >= start,
-                Report.created_at <= end,
-                Report.deleted_at.is_(None),
-            )
+        stmt = select(func.count()).where(
+            _in_scope(Report.hospital_id, hospital_id),
+            Report.created_at >= start,
+            Report.created_at <= end,
+            Report.deleted_at.is_(None),
         )
+        if doctor_id is not None:
+            stmt = stmt.where(Report.created_by == doctor_id)  # a doctor sees only their own approved reports
+        result = await self.db.execute(stmt)
         return result.scalar_one()
 
     async def missed_appointment_rate(

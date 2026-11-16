@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { FormField } from "@/components/forms/form-field";
+import { Stagger, StaggerItem } from "@/components/motion/primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ROUTES } from "@/constants/routes";
@@ -50,50 +51,60 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
-      <FormField label="Email" htmlFor="email" error={errors.email?.message}>
-        <Input
-          id="email"
-          type="email"
-          autoFocus
-          autoComplete="email"
-          placeholder="you@hospital.com"
-          error={!!errors.email}
-          {...register("email")}
-        />
-      </FormField>
+    <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <Stagger className="flex flex-col gap-5" step={0.05} delay={0.1}>
+        <StaggerItem>
+          <FormField label="Email" htmlFor="email" error={errors.email?.message}>
+            <Input
+              id="email"
+              type="email"
+              autoFocus
+              autoComplete="email"
+              placeholder="you@hospital.com"
+              error={!!errors.email}
+              {...register("email")}
+            />
+          </FormField>
+        </StaggerItem>
 
-      <FormField label="Password" htmlFor="password" error={errors.password?.message}>
-        <div className="relative">
-          <Input
-            id="password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            placeholder="••••••••"
-            error={!!errors.password}
-            className="pr-11"
-            {...register("password")}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword((v) => !v)}
-            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-text-secondary hover:text-text-primary"
-            aria-label={showPassword ? "Hide password" : "Show password"}
-          >
-            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-          </button>
-        </div>
-      </FormField>
+        <StaggerItem>
+          <FormField label="Password" htmlFor="password" error={errors.password?.message}>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="••••••••"
+                error={!!errors.password}
+                className="pr-11"
+                {...register("password")}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-text-secondary hover:text-text-primary"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
+          </FormField>
+        </StaggerItem>
 
-      <div className="flex justify-end">
-        <Link href={ROUTES.forgotPassword} className="text-body text-primary hover:underline">
-          Forgot password?
-        </Link>
-      </div>
+        <StaggerItem>
+          <div className="flex justify-end">
+            <Link href={ROUTES.forgotPassword} className="text-body text-primary hover:underline">
+              Forgot password?
+            </Link>
+          </div>
+        </StaggerItem>
 
-      <Button type="submit" loading={isSubmitting} className="w-full">
-        Log in
-      </Button>
+        <StaggerItem>
+          <Button type="submit" loading={isSubmitting} className="w-full">
+            Log in
+          </Button>
+        </StaggerItem>
+      </Stagger>
     </form>
   );
 }

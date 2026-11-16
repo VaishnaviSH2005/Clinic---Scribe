@@ -25,6 +25,11 @@ export function useAppointments(args: AppointmentListArgs) {
   });
 }
 
+/** The server refuses a time that has already passed until the user confirms it. */
+export function isPastTimeError(error: unknown): boolean {
+  return error instanceof ApiClientError && error.errorCode === "APPOINTMENT_IN_PAST";
+}
+
 function friendlyError(error: unknown, fallback: string): string {
   if (error instanceof ApiClientError) {
     if (error.errorCode === "DOCTOR_UNAVAILABLE")
@@ -45,19 +50,30 @@ export function useAppointmentMutations() {
       toast.success("Appointment scheduled successfully.");
       void invalidate();
     },
-    onError: (error: unknown) =>
-      toast.error(friendlyError(error, "Unable to schedule appointment.")),
+    onError: (error: unknown) => {
+      if (isPastTimeError(error)) return; // the dialog asks the user to confirm
+      toast.error(friendlyError(error, "Unable to schedule appointment."));
+    },
   });
 
   const reschedule = useMutation({
-    mutationFn: ({ id, scheduledAt }: { id: string; scheduledAt: string }) =>
-      appointmentService.reschedule(id, { scheduled_at: scheduledAt }),
+    mutationFn: ({
+      id,
+      scheduledAt,
+      allowPast,
+    }: {
+      id: string;
+      scheduledAt: string;
+      allowPast?: boolean;
+    }) => appointmentService.reschedule(id, { scheduled_at: scheduledAt, allow_past: allowPast }),
     onSuccess: () => {
       toast.success("Appointment rescheduled successfully.");
       void invalidate();
     },
-    onError: (error: unknown) =>
-      toast.error(friendlyError(error, "Unable to reschedule appointment.")),
+    onError: (error: unknown) => {
+      if (isPastTimeError(error)) return; // the dialog asks the user to confirm
+      toast.error(friendlyError(error, "Unable to reschedule appointment."));
+    },
   });
 
   const checkIn = useMutation({

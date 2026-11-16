@@ -5,44 +5,50 @@ import { toast } from "sonner";
 
 import type { MedicalProfile, PatientUpdatePayload } from "@/types/patient";
 
+import { useHospitalScope } from "../hospital-scope";
 import { patientService } from "../services/patient.service";
 
 export function usePatient(id: string) {
+  const hospitalId = useHospitalScope();
   return useQuery({
-    queryKey: ["patients", id],
-    queryFn: () => patientService.get(id),
+    queryKey: ["patients", id, hospitalId ?? null],
+    queryFn: () => patientService.get(id, hospitalId),
     enabled: !!id,
   });
 }
 
 export function usePatientMedicalProfile(id: string) {
+  const hospitalId = useHospitalScope();
   return useQuery({
-    queryKey: ["patients", id, "medical-profile"],
-    queryFn: () => patientService.getMedicalProfile(id),
+    queryKey: ["patients", id, "medical-profile", hospitalId ?? null],
+    queryFn: () => patientService.getMedicalProfile(id, hospitalId),
     enabled: !!id,
   });
 }
 
 export function usePatientTimeline(id: string) {
+  const hospitalId = useHospitalScope();
   return useQuery({
-    queryKey: ["patients", id, "timeline"],
-    queryFn: () => patientService.getTimeline(id),
+    queryKey: ["patients", id, "timeline", hospitalId ?? null],
+    queryFn: () => patientService.getTimeline(id, hospitalId),
     enabled: !!id,
   });
 }
 
 export function usePatientAppointments(id: string) {
+  const hospitalId = useHospitalScope();
   return useQuery({
-    queryKey: ["patients", id, "appointments"],
-    queryFn: () => patientService.getAppointments(id),
+    queryKey: ["patients", id, "appointments", hospitalId ?? null],
+    queryFn: () => patientService.getAppointments(id, hospitalId),
     enabled: !!id,
   });
 }
 
 export function usePatientDocuments(id: string) {
+  const hospitalId = useHospitalScope();
   return useQuery({
-    queryKey: ["patients", id, "documents"],
-    queryFn: () => patientService.getDocuments(id),
+    queryKey: ["patients", id, "documents", hospitalId ?? null],
+    queryFn: () => patientService.getDocuments(id, hospitalId),
     enabled: !!id,
   });
 }

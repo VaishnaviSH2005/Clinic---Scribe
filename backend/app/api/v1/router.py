@@ -15,6 +15,7 @@ from app.api.v1.departments import router as departments_router
 from app.api.v1.doctors import router as doctors_router
 from app.api.v1.health import router as health_router
 from app.api.v1.hospitals import router as hospitals_router
+from app.api.v1.live import router as live_router
 from app.api.v1.notifications import router as notifications_router
 from app.api.v1.patients import router as patients_router
 from app.api.v1.receptionists import router as receptionists_router
@@ -35,6 +36,7 @@ api_router.include_router(users_router)
 api_router.include_router(patients_router)
 api_router.include_router(appointments_router)
 api_router.include_router(consultations_router)
+api_router.include_router(live_router)
 api_router.include_router(ai_router)
 api_router.include_router(reports_router)
 api_router.include_router(notifications_router)

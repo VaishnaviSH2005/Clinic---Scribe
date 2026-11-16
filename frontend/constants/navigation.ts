@@ -72,13 +72,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Reports",
     href: ROUTES.reports,
     icon: FileText,
-    roles: [ROLES.hospitalAdmin, ROLES.doctor],
+    roles: [ROLES.superAdmin, ROLES.hospitalAdmin, ROLES.doctor, ROLES.receptionist],
   },
   {
     label: "Analytics",
     href: ROUTES.analytics,
     icon: BarChart3,
-    roles: [ROLES.hospitalAdmin, ROLES.doctor],
+    roles: [ROLES.superAdmin, ROLES.hospitalAdmin, ROLES.doctor],
   },
   {
     label: "Settings",

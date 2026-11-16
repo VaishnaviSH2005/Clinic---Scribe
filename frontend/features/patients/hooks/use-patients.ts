@@ -13,10 +13,14 @@ export function usePatients(params: {
   pageSize: number;
   search?: string;
   includeArchived?: boolean;
+  hospitalId?: string;
+  enabled?: boolean;
 }) {
+  const { enabled = true, ...query } = params;
   return useQuery({
-    queryKey: ["patients", params],
-    queryFn: () => patientService.list(params),
+    queryKey: ["patients", query],
+    queryFn: () => patientService.list(query),
+    enabled,
   });
 }
 

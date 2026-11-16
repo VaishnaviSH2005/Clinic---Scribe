@@ -18,22 +18,35 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
   return search.toString();
 }
 
+// Super Admin reads are scoped to one chosen hospital via `hospital_id`
+// (hospital staff never need it; the backend ignores it for them).
+const scoped = (path: string, hospitalId?: string) =>
+  hospitalId ? `${path}?${buildQuery({ hospital_id: hospitalId })}` : path;
+
 export const patientService = {
   register: (payload: PatientCreatePayload) => apiClient.post<Patient>("/patients", payload),
 
-  list: (params: { page: number; pageSize: number; search?: string; includeArchived?: boolean }) =>
+  list: (params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    includeArchived?: boolean;
+    hospitalId?: string;
+  }) =>
     apiClient.getList<Patient>(
       `/patients?${buildQuery({
         page: params.page,
         pageSize: params.pageSize,
         search: params.search,
         include_archived: params.includeArchived,
+        hospital_id: params.hospitalId,
       })}`,
     ),
 
   search: (q: string) => apiClient.get<Patient[]>(`/patients/search?${buildQuery({ q })}`),
 
-  get: (id: string) => apiClient.get<Patient>(`/patients/${id}`),
+  get: (id: string, hospitalId?: string) =>
+    apiClient.get<Patient>(scoped(`/patients/${id}`, hospitalId)),
 
   update: (id: string, payload: PatientUpdatePayload) =>
     apiClient.patch<Patient>(`/patients/${id}`, payload),
@@ -42,17 +55,20 @@ export const patientService = {
 
   restore: (id: string) => apiClient.post<Patient>(`/patients/${id}/restore`),
 
-  getMedicalProfile: (id: string) =>
-    apiClient.get<MedicalProfile | null>(`/patients/${id}/medical-profile`),
+  getMedicalProfile: (id: string, hospitalId?: string) =>
+    apiClient.get<MedicalProfile | null>(scoped(`/patients/${id}/medical-profile`, hospitalId)),
 
   updateMedicalProfile: (id: string, payload: Partial<MedicalProfile>) =>
     apiClient.patch<MedicalProfile>(`/patients/${id}/medical-profile`, payload),
 
-  getTimeline: (id: string) => apiClient.get<TimelineEvent[]>(`/patients/${id}/timeline`),
+  getTimeline: (id: string, hospitalId?: string) =>
+    apiClient.get<TimelineEvent[]>(scoped(`/patients/${id}/timeline`, hospitalId)),
 
-  getAppointments: (id: string) => apiClient.get<Appointment[]>(`/patients/${id}/appointments`),
+  getAppointments: (id: string, hospitalId?: string) =>
+    apiClient.get<Appointment[]>(scoped(`/patients/${id}/appointments`, hospitalId)),
 
-  getDocuments: (id: string) => apiClient.get<PatientDocument[]>(`/patients/${id}/documents`),
+  getDocuments: (id: string, hospitalId?: string) =>
+    apiClient.get<PatientDocument[]>(scoped(`/patients/${id}/documents`, hospitalId)),
 
   uploadDocument: (id: string, file: File, category?: string) => {
     const formData = new FormData();
@@ -61,6 +77,9 @@ export const patientService = {
     return apiClient.postForm<PatientDocument>(`/patients/${id}/documents`, formData);
   },
 
-  documentDownloadUrl: (patientId: string, documentId: string) =>
-    `${API_BASE_URL}${API_VERSION_PREFIX}/patients/${patientId}/documents/${documentId}/download`,
+  documentDownloadUrl: (patientId: string, documentId: string, hospitalId?: string) =>
+    `${API_BASE_URL}${API_VERSION_PREFIX}${scoped(
+      `/patients/${patientId}/documents/${documentId}/download`,
+      hospitalId,
+    )}`,
 };

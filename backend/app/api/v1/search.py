@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.exceptions import ForbiddenError
 from app.dependencies.auth import CurrentUser, get_current_user
+from app.models.enums import RoleName
 from app.schemas.response import ApiResponse
 from app.schemas.search_schema import SearchResultsOut
 from app.services import search_service
@@ -20,6 +21,10 @@ async def search(
     current: CurrentUser = Depends(get_current_user),
 ) -> ApiResponse[SearchResultsOut]:
     if current.hospital_id is None:
+        if current.role == RoleName.super_admin:
+            # No hospital of their own and platform staff browse patients/reports one
+            # chosen hospital at a time on those pages — nothing to search globally.
+            return ApiResponse(data=SearchResultsOut(query=q, results=[]))
         raise ForbiddenError("This account has no assigned hospital.", error_code="FORBIDDEN")
 
     data = await search_service.global_search(

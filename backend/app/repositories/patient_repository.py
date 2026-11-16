@@ -3,7 +3,7 @@
 import uuid
 from datetime import date
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import Integer, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.patient import Patient
@@ -40,12 +40,18 @@ class PatientRepository:
         )
         return result.scalar_one_or_none()
 
-    async def count_this_year(self, hospital_id: uuid.UUID, year: int) -> int:
-        """Used to derive the sequential portion of the UHID (Ch8.4: CLN-YYYY-NNNNNN)."""
+    async def max_uhid_sequence(self, year: int) -> int:
+        """Highest numeric part issued so far for `CLN-{year}-NNNNNN` UHIDs.
+
+        UHIDs are unique across the whole platform (unique index on
+        `patients.uhid`), so the next number must come from the platform-wide
+        maximum — a per-hospital count makes every hospital start at 000001
+        and collide with the first hospital's IDs. Legacy/demo IDs that do not
+        match the `CLN-YYYY-digits` pattern are ignored."""
+        prefix_len = len(f"CLN-{year}-")
         result = await self.db.execute(
-            select(func.count()).select_from(Patient).where(
-                Patient.hospital_id == hospital_id,
-                func.extract("year", Patient.created_at) == year,
+            select(func.coalesce(func.max(cast(func.substr(Patient.uhid, prefix_len + 1), Integer)), 0)).where(
+                Patient.uhid.op("~")(f"^CLN-{year}-[0-9]+$")
             )
         )
         return result.scalar_one()

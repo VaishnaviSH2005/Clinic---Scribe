@@ -18,7 +18,8 @@ see its docstring for why it degrades instead of failing the stop request).
 
 import json
 import uuid
-from typing import TypedDict
+from collections.abc import Awaitable
+from typing import TypedDict, cast
 
 from app.core.config import settings
 from app.core.redis import get_redis
@@ -32,14 +33,17 @@ class AiJob(TypedDict):
 async def enqueue_ai_job(consultation_id: uuid.UUID, *, stage: str | None = None) -> None:
     redis = get_redis()
     job: AiJob = {"consultation_id": str(consultation_id), "stage": stage}
-    await redis.lpush(settings.ai_queue_key, json.dumps(job))
+    # redis-py types its async API as `Awaitable[T] | T`; it is always awaitable here.
+    await cast("Awaitable[int]", redis.lpush(settings.ai_queue_key, json.dumps(job)))
 
 
 async def dequeue_ai_job(timeout_seconds: int = 5) -> AiJob | None:
     """Blocking pop used by the standalone worker loop. Returns None on a
     timeout (no job available) so the caller's loop can check for shutdown."""
     redis = get_redis()
-    result = await redis.brpop([settings.ai_queue_key], timeout=timeout_seconds)
+    result = await cast(
+        "Awaitable[list[str] | None]", redis.brpop([settings.ai_queue_key], timeout=timeout_seconds)
+    )
     if result is None:
         return None
     _key, value = result
@@ -48,4 +52,4 @@ async def dequeue_ai_job(timeout_seconds: int = 5) -> AiJob | None:
 
 async def queue_depth() -> int:
     redis = get_redis()
-    return await redis.llen(settings.ai_queue_key)
+    return await cast("Awaitable[int]", redis.llen(settings.ai_queue_key))

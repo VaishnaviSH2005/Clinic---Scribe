@@ -19,6 +19,14 @@ export function useDepartments(page: number, pageSize: number) {
   });
 }
 
+// A duplicate name gets its own message so the admin knows exactly what to change.
+function departmentError(error: unknown, fallback: string): string {
+  if (error instanceof ApiClientError && error.errorCode === "DUPLICATE_DEPARTMENT") {
+    return "A department with this name already exists in your hospital.";
+  }
+  return fallback;
+}
+
 export function useDepartmentMutations() {
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["departments"] });
@@ -29,7 +37,8 @@ export function useDepartmentMutations() {
       toast.success("Department created successfully.");
       void invalidate();
     },
-    onError: () => toast.error("Unable to create department. Please try again."),
+    onError: (error: unknown) =>
+      toast.error(departmentError(error, "Unable to create department. Please try again.")),
   });
 
   const update = useMutation({
@@ -39,7 +48,8 @@ export function useDepartmentMutations() {
       toast.success("Department updated successfully.");
       void invalidate();
     },
-    onError: () => toast.error("Unable to update department. Please try again."),
+    onError: (error: unknown) =>
+      toast.error(departmentError(error, "Unable to update department. Please try again.")),
   });
 
   const updateStatus = useMutation({

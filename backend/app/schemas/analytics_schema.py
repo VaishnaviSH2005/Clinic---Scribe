@@ -27,3 +27,7 @@ class AnalyticsOut(BaseModel):
     consultations_by_department: list[NamedCount]
     reports_generated: int
     missed_appointment_rate: float
+    # Platform view (Super Admin only; empty for hospital roles).
+    consultations_by_hospital: list[NamedCount] = []
+    hospitals_by_status: dict[str, int] = {}
+    licenses_by_status: dict[str, int] = {}

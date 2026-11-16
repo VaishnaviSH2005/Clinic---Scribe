@@ -51,3 +51,9 @@ docker/data/
 
 # Local file storage (PRD Ch3.9 dev backend — uploaded documents)
 backend/storage/
+
+# e2e test artifacts (generated audio / downloaded PDFs)
+backend/e2e/artifacts/
+
+# TypeScript incremental build info (generated)
+*.tsbuildinfo

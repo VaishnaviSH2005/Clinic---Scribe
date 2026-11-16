@@ -1,7 +1,6 @@
-"""Analytics API. Super Admin has no single-hospital analytics view in this
-module (platform-wide figures belong to Ch5.16's Super Admin dashboard,
-already covered by `/dashboard`) — Analytics here is Hospital
-Admin/Doctor only, both hospital-isolated via `current.hospital_id`.
+"""Analytics API (PRD Ch6.15: Super Admin, Hospital Admin, Doctor "personal";
+Receptionist none). Super Admin gets platform-wide aggregate counts; Hospital
+Admin and Doctor are hospital-isolated via `current.hospital_id`.
 """
 
 from datetime import date
@@ -25,9 +24,9 @@ async def get_analytics(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    current: CurrentUser = Depends(require_roles(RoleName.hospital_admin, RoleName.doctor)),
+    current: CurrentUser = Depends(require_roles(RoleName.super_admin, RoleName.hospital_admin, RoleName.doctor)),
 ) -> ApiResponse[AnalyticsOut]:
-    if current.hospital_id is None:
+    if current.hospital_id is None and current.role != RoleName.super_admin:
         raise ForbiddenError("This account has no assigned hospital.", error_code="FORBIDDEN")
 
     data = await analytics_service.get_analytics(

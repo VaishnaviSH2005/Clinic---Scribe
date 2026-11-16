@@ -12,6 +12,18 @@ class DepartmentRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    async def name_exists(self, hospital_id: uuid.UUID, name: str, *, exclude_id: uuid.UUID | None = None) -> bool:
+        """Case-insensitive duplicate check within one hospital (other hospitals may reuse a name)."""
+        stmt = select(Department.id).where(
+            Department.hospital_id == hospital_id,
+            Department.deleted_at.is_(None),
+            func.lower(Department.name) == name.strip().lower(),
+        )
+        if exclude_id is not None:
+            stmt = stmt.where(Department.id != exclude_id)
+        result = await self.db.execute(stmt.limit(1))
+        return result.first() is not None
+
     async def get_by_id(
         self, department_id: uuid.UUID, *, hospital_id: uuid.UUID | None = None
     ) -> Department | None:

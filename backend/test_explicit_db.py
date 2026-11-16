@@ -1,5 +1,7 @@
 import asyncio
+
 from sqlalchemy.ext.asyncio import create_async_engine
+
 
 async def main():
     url = "postgresql+asyncpg://cliniscribe:cliniscribe@localhost:5432/cliniscribe"

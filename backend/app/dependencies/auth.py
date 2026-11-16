@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.exceptions import ForbiddenError, UnauthorizedError
+from app.core.exceptions import AppError, ForbiddenError, NotFoundError, UnauthorizedError
 from app.core.security import decode_token
 from app.models.enums import HospitalStatus, RoleName, UserStatus
 from app.models.hospital import Hospital
@@ -41,9 +41,24 @@ class CurrentUser:
     session_id: uuid.UUID
     hospital_id: uuid.UUID | None
 
+    @property
+    def hospital(self) -> uuid.UUID:
+        """The user's own hospital. Every role except Super Admin belongs to one;
+        endpoints that exclude Super Admin use this so the type is non-optional
+        (and a hospital-less account is refused instead of reaching a query)."""
+        if self.hospital_id is None:
+            raise ForbiddenError("This action requires an assigned hospital.", error_code="FORBIDDEN")
+        return self.hospital_id
+
 
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> CurrentUser:
-    token = request.cookies.get(settings.access_token_cookie_name)
+    return await authenticate_access_token(db, request.cookies.get(settings.access_token_cookie_name))
+
+
+async def authenticate_access_token(db: AsyncSession, token: str | None) -> CurrentUser:
+    """Full session validation for an access token (PRD Ch7.8 "Session Validation"):
+    token -> active session -> active user -> active hospital -> role. Shared by the
+    HTTP dependency and the live-transcript WebSocket so both enforce identical rules."""
     if not token:
         raise SessionInvalidError("Your session has expired. Please log in again.")
 
@@ -106,3 +121,30 @@ def require_hospital_scope() -> Callable[[CurrentUser], Coroutine[Any, Any, uuid
         return current.hospital_id
 
     return _resolve
+
+
+class HospitalScopeRequiredError(AppError):
+    status_code = 422
+    error_code = "HOSPITAL_SCOPE_REQUIRED"
+
+
+async def resolve_hospital_scope(
+    db: AsyncSession, current: CurrentUser, requested_hospital_id: uuid.UUID | None
+) -> uuid.UUID:
+    """Hospital whose data a hospital-scoped READ should touch.
+
+    - Hospital staff are always pinned to their own hospital; any
+      `requested_hospital_id` they send is ignored (no cross-tenant reads).
+    - Super Admin has no hospital of their own, so they must name exactly
+      one (PRD Ch1.x hospital-level isolation): platform-wide patient
+      listings are never returned.
+    """
+    if current.role != RoleName.super_admin:
+        if current.hospital_id is None:
+            raise ForbiddenError("This action requires an assigned hospital.", error_code="FORBIDDEN")
+        return current.hospital_id
+    if requested_hospital_id is None:
+        raise HospitalScopeRequiredError("Select a hospital to view its patients.")
+    if await db.get(Hospital, requested_hospital_id) is None:
+        raise NotFoundError("The requested hospital could not be located.", error_code="HOSPITAL_NOT_FOUND")
+    return requested_hospital_id

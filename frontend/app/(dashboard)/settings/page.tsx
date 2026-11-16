@@ -7,6 +7,7 @@ import { ChangePasswordForm } from "@/features/authentication/components/change-
 import { ProfileForm } from "@/features/authentication/components/profile-form";
 import { useAuth } from "@/features/authentication/hooks/use-auth";
 import { useProfile } from "@/features/authentication/hooks/use-profile";
+import { AuditLogTable } from "@/features/audit-logs/components/audit-log-table";
 import { DepartmentsTab } from "@/features/settings/components/departments-tab";
 import { HospitalsTab } from "@/features/settings/components/hospitals-tab";
 import { PreferencesTab } from "@/features/settings/components/preferences-tab";
@@ -66,6 +67,7 @@ export default function SettingsPage() {
           {canManageHospital && <TabsTrigger value="hospital">Hospital</TabsTrigger>}
           {canManageOrganization && <TabsTrigger value="departments">Departments</TabsTrigger>}
           {canManageOrganization && <TabsTrigger value="users">Users</TabsTrigger>}
+          {canManageOrganization && <TabsTrigger value="audit">Audit log</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="profile">
@@ -87,6 +89,21 @@ export default function SettingsPage() {
         {canManageOrganization && (
           <TabsContent value="users">
             <UsersTab />
+          </TabsContent>
+        )}
+        {canManageOrganization && (
+          <TabsContent value="audit">
+            <Card>
+              <CardHeader>
+                <CardTitle>Audit log</CardTitle>
+                <p className="text-body text-text-secondary">
+                  Sign-ins, sign-outs, report approvals, and staff account changes in your hospital.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <AuditLogTable showHospital={false} />
+              </CardContent>
+            </Card>
           </TabsContent>
         )}
       </Tabs>

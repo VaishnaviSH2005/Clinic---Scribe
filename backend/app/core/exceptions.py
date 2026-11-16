@@ -51,6 +51,15 @@ def _error_body(message: str, error_code: str) -> dict:
     return {"success": False, "message": message, "errorCode": error_code}
 
 
+def _safe_errors(exc: RequestValidationError) -> list[dict]:
+    """Pydantic's raw `errors()` can carry the original exception object in
+    `ctx` (any custom validator that raises ValueError), which is not JSON
+    serialisable and used to turn a simple "password too weak" into a 500."""
+    return [
+        {"type": err.get("type"), "loc": list(err.get("loc", ())), "msg": err.get("msg")} for err in exc.errors()
+    ]
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
@@ -60,7 +69,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def handle_validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content=_error_body("Validation failed.", "VALIDATION_ERROR") | {"errors": exc.errors()},
+            content=_error_body("Validation failed.", "VALIDATION_ERROR") | {"errors": _safe_errors(exc)},
         )
 
     @app.exception_handler(StarletteHTTPException)

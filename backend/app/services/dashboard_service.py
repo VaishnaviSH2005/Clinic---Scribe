@@ -105,7 +105,7 @@ async def get_dashboard(
         )
 
     if role == RoleName.doctor:
-        appointments_today = await repo.doctor_appointments_today(user_id)
+        todays_appointments = await repo.doctor_appointments_today(user_id)
         pending = await repo.doctor_pending_consultations(user_id)
         drafts = await repo.doctor_drafts(user_id)
         reports_this_month = await repo.doctor_reports_this_month(user_id)
@@ -113,12 +113,14 @@ async def get_dashboard(
         return DashboardOut(
             role=role.value,
             cards=[
-                DashboardCard(key="appointments_today", label="Appointments today", value=len(appointments_today)),
+                DashboardCard(
+                    key="appointments_today", label="Appointments today", value=len(todays_appointments)
+                ),
                 DashboardCard(key="pending_review", label="Pending your review", value=pending),
                 DashboardCard(key="drafts", label="Saved drafts", value=drafts),
                 DashboardCard(key="reports_this_month", label="Reports this month", value=reports_this_month),
             ],
-            appointments_today=await _appointment_summaries(db, appointments_today),
+            appointments_today=await _appointment_summaries(db, todays_appointments),
             recent_consultations=await _consultation_summaries(db, recent),
         )
 

@@ -1,9 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
+import { CARD_MS, EASE_OUT } from "@/components/motion/primitives";
+import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { NAV_ITEMS } from "@/constants/navigation";
 import { useAuth } from "@/features/authentication/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -18,6 +22,8 @@ export function Sidebar() {
   const pathname = usePathname();
   const { collapsed, toggle } = useSidebarStore();
   const { user, logout } = useAuth();
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const items = user ? NAV_ITEMS.filter((item) => item.roles.includes(user.role)) : [];
   const labelClass = collapsed ? "hidden" : "hidden lg:inline";
@@ -46,25 +52,37 @@ export function Sidebar() {
           </button>
         </div>
         <nav className="flex flex-col gap-1 px-3 py-2">
-          {items.map((item) => {
+          {items.map((item, index) => {
             const active = pathname?.startsWith(item.href);
             const Icon = item.icon;
             return (
-              <Link
+              <motion.div
                 key={item.href}
-                href={item.href}
-                aria-label={item.label}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-body transition-colors duration-micro",
-                  active
-                    ? "bg-primary text-white"
-                    : "text-white/70 hover:bg-white/10 hover:text-white",
-                )}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: CARD_MS, delay: index * 0.02, ease: EASE_OUT }}
               >
-                <Icon className="h-6 w-6 shrink-0" />
-                <span className={labelClass}>{item.label}</span>
-              </Link>
+                <Link
+                  href={item.href}
+                  aria-label={item.label}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "relative flex items-center gap-3 rounded-md px-3 py-2.5 text-body transition-colors duration-micro",
+                    active ? "text-white" : "text-white/70 hover:bg-white/10 hover:text-white",
+                  )}
+                >
+                  {active && (
+                    // Shared layoutId: the pill slides between items on navigation.
+                    <motion.span
+                      layoutId="sidebar-active-pill"
+                      className="absolute inset-0 rounded-md bg-primary"
+                      transition={{ duration: CARD_MS, ease: EASE_OUT }}
+                    />
+                  )}
+                  <Icon className="relative h-6 w-6 shrink-0" />
+                  <span className={cn("relative", labelClass)}>{item.label}</span>
+                </Link>
+              </motion.div>
             );
           })}
         </nav>
@@ -79,7 +97,7 @@ export function Sidebar() {
           </div>
         )}
         <button
-          onClick={() => void logout()}
+          onClick={() => setLogoutOpen(true)}
           aria-label="Logout"
           className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-body text-white/70 hover:bg-white/10 hover:text-white"
         >
@@ -87,6 +105,18 @@ export function Sidebar() {
           <span className={labelClass}>Logout</span>
         </button>
       </div>
+      <ConfirmDialog
+        open={logoutOpen}
+        onOpenChange={setLogoutOpen}
+        title="Log out?"
+        description="You will need to sign in again to continue working."
+        confirmLabel="Log out"
+        loading={loggingOut}
+        onConfirm={() => {
+          setLoggingOut(true);
+          void logout();
+        }}
+      />
     </aside>
   );
 }

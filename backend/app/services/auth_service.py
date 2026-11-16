@@ -127,10 +127,13 @@ async def login(
     return AuthResult(user, role.name.value if role else "", access_token, refresh_token)
 
 
-async def logout(db: AsyncSession, *, session_id: uuid.UUID, user_id: uuid.UUID | None) -> None:
+async def logout(
+    db: AsyncSession, *, session_id: uuid.UUID, user_id: uuid.UUID | None, hospital_id: uuid.UUID | None = None
+) -> None:
     await SessionRepository(db).delete(session_id)
+    # hospital_id is recorded so a Hospital Admin can see their own staff's logouts (PRD Ch13.8).
     await record_audit_event(
-        db, action="logout", user_id=user_id, hospital_id=None, entity_type="session", entity_id=session_id
+        db, action="logout", user_id=user_id, hospital_id=hospital_id, entity_type="session", entity_id=session_id
     )
 
 

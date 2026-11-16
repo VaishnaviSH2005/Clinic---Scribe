@@ -15,15 +15,21 @@ anything under `ai-services/`) is imported.
 
 import asyncio
 import signal
+import time
 import uuid
 
 from app.core import ai_bridge  # noqa: F401  (adds ai-services/ to sys.path)
 from app.core.ai_queue import AiJob, dequeue_ai_job
 from app.core.database import AsyncSessionLocal
 from app.core.logging import logger
-from app.services.ai_pipeline_service import run_pipeline, run_single_stage_from_queue
+from app.services.ai_pipeline_service import (
+    recover_stuck_consultations,
+    run_pipeline,
+    run_single_stage_from_queue,
+)
 
 _shutdown = asyncio.Event()
+RECOVERY_INTERVAL_SECONDS = 300
 
 
 def _handle_shutdown_signal(*_args: object) -> None:
@@ -53,7 +59,15 @@ async def main() -> None:
             pass  # signal handlers are not available on Windows event loops
 
     logger.info("AI pipeline worker started.")
+    next_recovery = 0.0  # run once at startup, then every RECOVERY_INTERVAL_SECONDS
     while not _shutdown.is_set():
+        if time.monotonic() >= next_recovery:
+            next_recovery = time.monotonic() + RECOVERY_INTERVAL_SECONDS
+            try:
+                async with AsyncSessionLocal() as db:
+                    await recover_stuck_consultations(db)
+            except Exception:  # noqa: BLE001 - recovery must never take the worker down
+                logger.exception("AI pipeline worker: stuck-consultation recovery failed")
         job = await dequeue_ai_job(timeout_seconds=5)
         if job is None:
             continue

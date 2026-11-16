@@ -22,10 +22,10 @@ interface ConsultationToolbarProps {
 
 const ACCEPTED_AUDIO_TYPES = "audio/webm,audio/ogg,audio/mp4,audio/mpeg,audio/wav,audio/x-wav";
 
-// Bottom Toolbar (PRD Ch9.11). Approve remains disabled until the
-// consultation reaches `pending_review` (i.e. recording has been stopped) —
-// the same gate the PRD describes for AI completion, adapted since no AI
-// pipeline exists yet in this milestone.
+// Bottom Toolbar (PRD Ch9.11). Approve is only enabled in `pending_review`.
+// Recording buttons are hidden during `ai_processing` — the audio has already
+// been submitted; the doctor must wait for the AI pipeline to complete before
+// the consultation is ready for review actions.
 export function ConsultationToolbar({
   consultationStatus,
   recorderStatus,
@@ -40,7 +40,8 @@ export function ConsultationToolbar({
   onCancel,
 }: ConsultationToolbarProps) {
   const isReadOnly = consultationStatus === "approved";
-  const canRecord = !isReadOnly && consultationStatus !== "pending_review";
+  const isAiProcessing = consultationStatus === "ai_processing";
+  const canRecord = !isReadOnly && !isAiProcessing && consultationStatus !== "pending_review";
   const canApprove = consultationStatus === "pending_review";
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -99,7 +100,7 @@ export function ConsultationToolbar({
             <X className="h-4 w-4" /> Cancel
           </Button>
         )}
-        {!isReadOnly && consultationStatus !== "pending_review" && (
+        {!isReadOnly && !isAiProcessing && consultationStatus !== "pending_review" && (
           <Button variant="secondary" onClick={onSaveDraft} loading={isBusy}>
             <Save className="h-4 w-4" /> Save as draft
           </Button>

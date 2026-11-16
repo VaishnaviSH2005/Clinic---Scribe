@@ -41,7 +41,8 @@ export function LicenseFormDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (next) reset({ hospital_id: "", plan_name: "", status: "trial", starts_at: "", expires_at: "" });
+        if (next)
+          reset({ hospital_id: "", plan_name: "", status: "trial", starts_at: "", expires_at: "" });
         onOpenChange(next);
       }}
     >
@@ -73,10 +74,20 @@ export function LicenseFormDialog({
           </FormField>
           <div className="grid grid-cols-2 gap-4">
             <FormField label="Starts on" htmlFor="starts_at" error={errors.starts_at?.message}>
-              <Input id="starts_at" type="date" error={!!errors.starts_at} {...register("starts_at")} />
+              <Input
+                id="starts_at"
+                type="date"
+                error={!!errors.starts_at}
+                {...register("starts_at")}
+              />
             </FormField>
             <FormField label="Expires on" htmlFor="expires_at" error={errors.expires_at?.message}>
-              <Input id="expires_at" type="date" error={!!errors.expires_at} {...register("expires_at")} />
+              <Input
+                id="expires_at"
+                type="date"
+                error={!!errors.expires_at}
+                {...register("expires_at")}
+              />
             </FormField>
           </div>
           <div className="flex justify-end gap-3">

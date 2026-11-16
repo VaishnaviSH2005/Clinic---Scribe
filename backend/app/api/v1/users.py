@@ -53,7 +53,7 @@ async def list_users(
 ) -> ApiListResponse[UserOut]:
     users, total = await user_service.list_users(
         db,
-        hospital_id=current.hospital_id,
+        hospital_id=current.hospital,
         role_name=role,
         department_id=department_id,
         status=status,
@@ -75,7 +75,7 @@ async def update_user(
     current: CurrentUser = Depends(require_roles(RoleName.hospital_admin)),
 ) -> ApiResponse[UserOut]:
     user = await user_service.update_user(
-        db, user_id=user_id, hospital_id=current.hospital_id, data=body, actor_id=current.user.id
+        db, user_id=user_id, hospital_id=current.hospital, data=body, actor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=await _to_out(db, user), message="User updated successfully.")
@@ -89,7 +89,7 @@ async def update_user_status(
     current: CurrentUser = Depends(require_roles(RoleName.hospital_admin)),
 ) -> ApiResponse[UserOut]:
     user = await user_service.set_user_status(
-        db, user_id=user_id, hospital_id=current.hospital_id, status=body.status, actor_id=current.user.id
+        db, user_id=user_id, hospital_id=current.hospital, status=body.status, actor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=await _to_out(db, user), message="User status updated successfully.")

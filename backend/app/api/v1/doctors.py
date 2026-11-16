@@ -42,7 +42,7 @@ async def create_doctor(
     current: CurrentUser = Depends(require_roles(RoleName.hospital_admin)),
 ) -> ApiResponse[UserOut]:
     doctor = await user_service.create_doctor(
-        db, hospital_id=current.hospital_id, data=body, actor_id=current.user.id
+        db, hospital_id=current.hospital, data=body, actor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=_to_out(doctor), message="Doctor created successfully.")
@@ -55,13 +55,11 @@ async def list_doctors(
     status: UserStatus | None = Query(default=None),
     search: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    current: CurrentUser = Depends(
-        require_roles(RoleName.hospital_admin, RoleName.doctor, RoleName.receptionist)
-    ),
+    current: CurrentUser = Depends(require_roles(RoleName.hospital_admin, RoleName.doctor, RoleName.receptionist)),
 ) -> ApiListResponse[UserOut]:
     doctors, total = await user_service.list_users(
         db,
-        hospital_id=current.hospital_id,
+        hospital_id=current.hospital,
         role_name=RoleName.doctor,
         department_id=department_id,
         status=status,
@@ -83,7 +81,7 @@ async def update_doctor(
     current: CurrentUser = Depends(require_roles(RoleName.hospital_admin)),
 ) -> ApiResponse[UserOut]:
     doctor = await user_service.update_user(
-        db, user_id=doctor_id, hospital_id=current.hospital_id, data=body, actor_id=current.user.id
+        db, user_id=doctor_id, hospital_id=current.hospital, data=body, actor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=_to_out(doctor), message="Doctor updated successfully.")
@@ -97,7 +95,7 @@ async def update_doctor_status(
     current: CurrentUser = Depends(require_roles(RoleName.hospital_admin)),
 ) -> ApiResponse[UserOut]:
     doctor = await user_service.set_user_status(
-        db, user_id=doctor_id, hospital_id=current.hospital_id, status=body.status, actor_id=current.user.id
+        db, user_id=doctor_id, hospital_id=current.hospital, status=body.status, actor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=_to_out(doctor), message="Doctor status updated successfully.")

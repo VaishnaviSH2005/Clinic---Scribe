@@ -2,9 +2,11 @@ import { PatientDetailView } from "@/features/patients/components/patient-detail
 
 interface PatientDetailPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ hospital?: string }>;
 }
 
-export default async function PatientDetailPage({ params }: PatientDetailPageProps) {
+export default async function PatientDetailPage({ params, searchParams }: PatientDetailPageProps) {
   const { id } = await params;
-  return <PatientDetailView patientId={id} />;
+  const { hospital } = await searchParams;
+  return <PatientDetailView patientId={id} hospitalId={hospital} />;
 }

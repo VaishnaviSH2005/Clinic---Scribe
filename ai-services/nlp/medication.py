@@ -1,25 +1,22 @@
 """Medication + allergy extraction (PRD Ch10.6). Keyword/phrase matching
 over the cleaned transcript text — see `entity_extractor.py` docstring for
-why this substitutes for SciSpaCy/MedCAT here.
+why this substitutes for SciSpaCy/MedCAT here. Negation is resolved across
+every mention of a term — see `negation.py`.
 """
 
-from .vocab import ALLERGIES, CHRONIC_CONDITIONS, MEDICATIONS, NEGATION_TRIGGERS
-
-
-def _is_negated(text: str, match_start: int) -> bool:
-    window = text[max(0, match_start - 25) : match_start]
-    return any(trigger in window for trigger in NEGATION_TRIGGERS)
+from .negation import assess_term
+from .vocab import ALLERGIES, CHRONIC_CONDITIONS, MEDICATIONS
 
 
 def _extract(text: str, vocabulary: list[str]) -> list[dict]:
     lowered = text.lower()
-    found: dict[str, dict] = {}
+    found: list[dict] = []
     for term in vocabulary:
-        index = lowered.find(term)
-        if index == -1 or term in found:
+        assessment = assess_term(lowered, term)
+        if assessment is None:
             continue
-        found[term] = {"text": term, "negated": _is_negated(lowered, index)}
-    return list(found.values())
+        found.append({"text": term, "negated": assessment[0]})
+    return found
 
 
 def extract_medications(text: str) -> list[dict]:

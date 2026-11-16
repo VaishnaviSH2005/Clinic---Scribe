@@ -20,4 +20,8 @@ export interface Analytics {
   consultations_by_department: NamedCount[];
   reports_generated: number;
   missed_appointment_rate: number;
+  // Platform view (Super Admin only; empty for hospital roles).
+  consultations_by_hospital: NamedCount[];
+  hospitals_by_status: Record<string, number>;
+  licenses_by_status: Record<string, number>;
 }

@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useAudioRecorder } from "../hooks/use-audio-recorder";
+import { useLiveCaptions } from "../hooks/use-live-captions";
 import {
   useConsultationActions,
   useConsultationWorkspace,
@@ -40,7 +41,24 @@ function getAudioDurationSeconds(file: File): Promise<number> {
 export function ConsultationWorkspaceView({ consultationId }: { consultationId: string }) {
   const { data, isLoading, isError } = useConsultationWorkspace(consultationId);
   const actions = useConsultationActions(consultationId);
-  const recorder = useAudioRecorder();
+  // Live captions are a best-effort side channel fed from the recorder's microphone tap;
+  // recording and the accurate post-Stop transcript never depend on them.
+  const live = useLiveCaptions(consultationId);
+  const recorder = useAudioRecorder({ onPcm: live.pushAudio });
+  const { connect: connectLive, disconnect: disconnectLive } = live;
+  const previousRecorderStatus = useRef(recorder.status);
+  useEffect(() => {
+    const previous = previousRecorderStatus.current;
+    previousRecorderStatus.current = recorder.status;
+    if (recorder.status === "recording" && previous !== "paused" && previous !== "recording") {
+      connectLive();
+    } else if (
+      ["stopped", "idle", "error"].includes(recorder.status) &&
+      previous !== recorder.status
+    ) {
+      disconnectLive();
+    }
+  }, [recorder.status, connectLive, disconnectLive]);
   const [cancelOpen, setCancelOpen] = useState(false);
 
   const isBusy =
@@ -80,6 +98,7 @@ export function ConsultationWorkspaceView({ consultationId }: { consultationId: 
     data;
   const isReadOnly = consultation.status === "approved" || consultation.status === "pending_review";
   const aiContentReadOnly = consultation.status === "approved";
+  const isAiProcessing = consultation.status === "ai_processing";
 
   const handleStartRecording = async () => {
     if (consultation.status === "draft") {
@@ -129,6 +148,14 @@ export function ConsultationWorkspaceView({ consultationId }: { consultationId: 
         </div>
       )}
 
+      {isAiProcessing && (
+        <div className="flex items-center gap-2 border-b border-border bg-surface px-6 py-2 text-body text-text-secondary">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          AI is processing the recording. Results will appear in the AI Assistant panel when
+          complete.
+        </div>
+      )}
+
       <div className="flex flex-1 overflow-hidden">
         <PatientContextPanel patient={patient} />
 
@@ -142,6 +169,8 @@ export function ConsultationWorkspaceView({ consultationId }: { consultationId: 
             transcript={transcript}
             recorderStatus={recorder.status}
             aiStatus={ai_status}
+            liveCaptions={live.captions}
+            liveState={live.state}
           />
           <ConsultationNotesPanel consultation={consultation} readOnly={isReadOnly} />
         </main>

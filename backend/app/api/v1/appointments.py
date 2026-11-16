@@ -28,7 +28,7 @@ async def create_appointment(
     current: CurrentUser = Depends(require_roles(*CREATE_ROLES)),
 ) -> ApiResponse[AppointmentOut]:
     appointment = await appointment_service.create_appointment(
-        db, hospital_id=current.hospital_id, data=body, actor_id=current.user.id
+        db, hospital_id=current.hospital, data=body, actor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(
@@ -49,7 +49,7 @@ async def list_appointments(
 ) -> ApiListResponse[AppointmentOut]:
     appointments, total = await appointment_service.list_appointments(
         db,
-        hospital_id=current.hospital_id,
+        hospital_id=current.hospital,
         date_from=date_from,
         date_to=date_to,
         doctor_id=doctor_id,
@@ -71,7 +71,7 @@ async def get_appointment(
     current: CurrentUser = Depends(require_roles(*ALL_STAFF)),
 ) -> ApiResponse[AppointmentOut]:
     appointment = await appointment_service.get_appointment(
-        db, appointment_id=appointment_id, hospital_id=current.hospital_id
+        db, appointment_id=appointment_id, hospital_id=current.hospital
     )
     return ApiResponse(data=AppointmentOut.model_validate(appointment))
 
@@ -86,9 +86,10 @@ async def reschedule_appointment(
     appointment = await appointment_service.reschedule_appointment(
         db,
         appointment_id=appointment_id,
-        hospital_id=current.hospital_id,
+        hospital_id=current.hospital,
         scheduled_at=body.scheduled_at,
         actor_id=current.user.id,
+        allow_past=body.allow_past,
     )
     await db.commit()
     return ApiResponse(
@@ -103,7 +104,7 @@ async def check_in_appointment(
     current: CurrentUser = Depends(require_roles(RoleName.receptionist)),
 ) -> ApiResponse[AppointmentOut]:
     appointment = await appointment_service.check_in_appointment(
-        db, appointment_id=appointment_id, hospital_id=current.hospital_id, actor_id=current.user.id
+        db, appointment_id=appointment_id, hospital_id=current.hospital, actor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=AppointmentOut.model_validate(appointment), message="Patient checked in successfully.")
@@ -116,7 +117,7 @@ async def cancel_appointment(
     current: CurrentUser = Depends(require_roles(*MANAGE_ROLES)),
 ) -> ApiResponse[AppointmentOut]:
     appointment = await appointment_service.cancel_appointment(
-        db, appointment_id=appointment_id, hospital_id=current.hospital_id, actor_id=current.user.id
+        db, appointment_id=appointment_id, hospital_id=current.hospital, actor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(

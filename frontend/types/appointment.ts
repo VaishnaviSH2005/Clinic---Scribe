@@ -17,8 +17,11 @@ export interface AppointmentCreatePayload {
   doctor_id: string;
   department_id: string;
   scheduled_at: string;
+  // true once the user confirmed booking a time that has already passed
+  allow_past?: boolean;
 }
 
 export interface AppointmentReschedulePayload {
   scheduled_at: string;
+  allow_past?: boolean;
 }

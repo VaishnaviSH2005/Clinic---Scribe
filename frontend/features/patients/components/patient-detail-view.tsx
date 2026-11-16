@@ -5,13 +5,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { usePatient } from "../hooks/use-patient-detail";
+import { HospitalScopeProvider } from "../hospital-scope";
 import { MedicalInfoCard } from "./medical-info-card";
 import { PatientAppointmentsPanel } from "./patient-appointments-panel";
 import { PatientDocumentsPanel } from "./patient-documents-panel";
 import { PatientHeader } from "./patient-header";
 import { PatientTimelinePanel } from "./patient-timeline-panel";
 
-export function PatientDetailView({ patientId }: { patientId: string }) {
+export function PatientDetailView({
+  patientId,
+  hospitalId,
+}: {
+  patientId: string;
+  hospitalId?: string;
+}) {
+  return (
+    <HospitalScopeProvider value={hospitalId}>
+      <PatientDetailContent patientId={patientId} />
+    </HospitalScopeProvider>
+  );
+}
+
+function PatientDetailContent({ patientId }: { patientId: string }) {
   const { data: patient, isLoading, isError } = usePatient(patientId);
 
   if (isLoading) {

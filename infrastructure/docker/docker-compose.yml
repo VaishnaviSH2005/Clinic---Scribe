@@ -29,6 +29,15 @@ services:
       timeout: 5s
       retries: 10
 
+  # Development mail sink (PRD Ch3.14): invitation and password-reset emails land
+  # here instead of the internet. Web UI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   backend:
     build:
       context: ../../backend
@@ -39,6 +48,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://cliniscribe:cliniscribe@postgres:5432/cliniscribe
       REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
     ports:
       - "8000:8000"
     volumes:
@@ -64,6 +75,23 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Near-real-time captions during a consultation (PRD Ch9.6). Separate from `worker` so a
+  # long post-consultation AI job never delays live captions.
+  live-worker:
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile.worker
+    command: ["python", "-m", "app.workers.live_worker"]
+    restart: unless-stopped
+    env_file:
+      - ../../backend/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://cliniscribe:cliniscribe@postgres:5432/cliniscribe
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
       redis:
         condition: service_healthy
 

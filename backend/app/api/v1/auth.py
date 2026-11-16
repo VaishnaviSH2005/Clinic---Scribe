@@ -12,6 +12,7 @@ from app.core.exceptions import UnauthorizedError
 from app.core.rate_limit import enforce_rate_limit, reset_rate_limit
 from app.core.security import decode_refresh_cookie_value
 from app.dependencies.auth import CurrentUser, get_current_user
+from app.models.enums import RoleName
 from app.schemas.auth_schema import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
@@ -61,7 +62,7 @@ async def login(
             id=result.user.id,
             name=result.user.full_name,
             email=result.user.email,
-            role=result.role_name,
+            role=RoleName(result.role_name),
             hospitalId=result.user.hospital_id,
         ),
         message="Login successful.",
@@ -72,7 +73,9 @@ async def login(
 async def logout(
     response: Response, db: AsyncSession = Depends(get_db), current: CurrentUser = Depends(get_current_user)
 ) -> ApiResponse[None]:
-    await auth_service.logout(db, session_id=current.session_id, user_id=current.user.id)
+    await auth_service.logout(
+        db, session_id=current.session_id, user_id=current.user.id, hospital_id=current.hospital_id
+    )
     await db.commit()
     clear_auth_cookies(response)
     return ApiResponse(data=None, message="Logged out successfully.")

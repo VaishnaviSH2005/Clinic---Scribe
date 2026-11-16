@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { PCM_WORKLET_CODE, PCM_WORKLET_NAME } from "@/lib/live-audio";
+
 export type RecorderStatus =
   "idle" | "requesting-permission" | "recording" | "paused" | "stopped" | "error";
 
@@ -29,13 +31,22 @@ function pickSupportedMimeType(): string | undefined {
   return CANDIDATE_MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type));
 }
 
+interface UseAudioRecorderOptions {
+  /**
+   * Optional tap on the live microphone signal (used for live captions). Receives raw
+   * float blocks plus the AudioContext sample rate; called only while actually recording
+   * (not while paused). Purely additive: recording works identically without it.
+   */
+  onPcm?: (block: Float32Array, sampleRate: number) => void;
+}
+
 /**
  * Real MediaRecorder + Web Audio API recording pipeline (PRD Ch9.6/9.11 —
  * Recording Status, Timer, Pause/Resume/Stop, Audio Level). This milestone
  * only captures and uploads the audio; transcription happens in the AI
  * Engine milestone (Ch10/17).
  */
-export function useAudioRecorder(): UseAudioRecorderResult {
+export function useAudioRecorder(options: UseAudioRecorderOptions = {}): UseAudioRecorderResult {
   const [status, setStatus] = useState<RecorderStatus>("idle");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
@@ -50,6 +61,10 @@ export function useAudioRecorder(): UseAudioRecorderResult {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedBeforePauseRef = useRef(0);
   const segmentStartRef = useRef<number>(0);
+  const pcmNodeRef = useRef<AudioWorkletNode | null>(null);
+  const forwardPcmRef = useRef(false);
+  const onPcmRef = useRef(options.onPcm);
+  onPcmRef.current = options.onPcm;
 
   const stopLevelMeter = useCallback(() => {
     if (animationFrameRef.current !== null) {
@@ -104,6 +119,9 @@ export function useAudioRecorder(): UseAudioRecorderResult {
     audioContextRef.current = null;
     analyserRef.current = null;
     recorderRef.current = null;
+    forwardPcmRef.current = false;
+    pcmNodeRef.current?.port.close();
+    pcmNodeRef.current = null;
   }, [stopLevelMeter, stopTimer]);
 
   useEffect(() => cleanup, [cleanup]);
@@ -135,6 +153,31 @@ export function useAudioRecorder(): UseAudioRecorderResult {
       audioContextRef.current = audioContext;
       analyserRef.current = analyser;
 
+      // Tap the same signal for live captions. Best-effort: if AudioWorklet is unavailable
+      // the recording is unaffected and captions simply do not appear.
+      if (onPcmRef.current && audioContext.audioWorklet) {
+        try {
+          const moduleUrl = URL.createObjectURL(
+            new Blob([PCM_WORKLET_CODE], { type: "application/javascript" }),
+          );
+          await audioContext.audioWorklet.addModule(moduleUrl);
+          URL.revokeObjectURL(moduleUrl);
+          const tap = new AudioWorkletNode(audioContext, PCM_WORKLET_NAME);
+          tap.port.onmessage = (event: MessageEvent<Float32Array>) => {
+            if (forwardPcmRef.current) onPcmRef.current?.(event.data, audioContext.sampleRate);
+          };
+          source.connect(tap);
+          // Some browsers only run a worklet that reaches the destination: route it through a muted gain.
+          const mute = audioContext.createGain();
+          mute.gain.value = 0;
+          tap.connect(mute);
+          mute.connect(audioContext.destination);
+          pcmNodeRef.current = tap;
+        } catch {
+          /* live captions unavailable; recording continues */
+        }
+      }
+
       chunksRef.current = [];
       elapsedBeforePauseRef.current = 0;
       setElapsedSeconds(0);
@@ -149,6 +192,7 @@ export function useAudioRecorder(): UseAudioRecorderResult {
 
       startTimer();
       runLevelMeter();
+      forwardPcmRef.current = true;
       setStatus("recording");
     } catch {
       setStatus("error");
@@ -159,6 +203,7 @@ export function useAudioRecorder(): UseAudioRecorderResult {
   const pause = useCallback(() => {
     if (recorderRef.current?.state !== "recording") return;
     recorderRef.current.pause();
+    forwardPcmRef.current = false;
     elapsedBeforePauseRef.current = elapsedSeconds;
     stopTimer();
     stopLevelMeter();
@@ -168,6 +213,7 @@ export function useAudioRecorder(): UseAudioRecorderResult {
   const resume = useCallback(() => {
     if (recorderRef.current?.state !== "paused") return;
     recorderRef.current.resume();
+    forwardPcmRef.current = true;
     startTimer();
     runLevelMeter();
     setStatus("recording");
@@ -180,6 +226,7 @@ export function useAudioRecorder(): UseAudioRecorderResult {
         resolve(null);
         return;
       }
+      forwardPcmRef.current = false;
       recorder.onstop = () => {
         const blob =
           chunksRef.current.length > 0

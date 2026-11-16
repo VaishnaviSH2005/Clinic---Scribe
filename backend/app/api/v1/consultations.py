@@ -46,7 +46,7 @@ async def start_consultation(
 
     consultation = await consultation_service.start_consultation(
         db,
-        hospital_id=current.hospital_id,
+        hospital_id=current.hospital,
         doctor_id=current.user.id,
         department_id=current.user.department_id,
         data=body,
@@ -60,12 +60,12 @@ async def list_consultations(
     scope: str = Query(default="active", pattern="^(active|previous|drafts)$"),
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
-    current: CurrentUser = Depends(require_roles(RoleName.doctor, RoleName.hospital_admin)),
+    current: CurrentUser = Depends(require_roles(RoleName.doctor)),
 ) -> ApiListResponse[ConsultationOut]:
     doctor_id = current.user.id if current.role == RoleName.doctor else None
     consultations, total = await consultation_service.list_consultations(
         db,
-        hospital_id=current.hospital_id,
+        hospital_id=current.hospital,
         doctor_id=doctor_id,
         scope=scope,
         page=pagination.page,
@@ -84,7 +84,7 @@ async def get_consultation_workspace(
     current: CurrentUser = Depends(require_roles(RoleName.doctor)),
 ) -> ApiResponse[ConsultationWorkspaceOut]:
     consultation, transcript, patient = await consultation_service.get_workspace(
-        db, consultation_id=consultation_id, hospital_id=current.hospital_id, doctor_id=current.user.id
+        db, consultation_id=consultation_id, hospital_id=current.hospital, doctor_id=current.user.id
     )
     ai_status = await ai_pipeline_service.get_ai_status(db, consultation=consultation)
     entities = await AiEntityRepository(db).get_by_consultation_id(consultation.id)
@@ -114,7 +114,7 @@ async def update_consultation(
     current: CurrentUser = Depends(require_roles(RoleName.doctor)),
 ) -> ApiResponse[ConsultationOut]:
     consultation = await consultation_service.update_consultation(
-        db, consultation_id=consultation_id, hospital_id=current.hospital_id, doctor_id=current.user.id, data=body
+        db, consultation_id=consultation_id, hospital_id=current.hospital, doctor_id=current.user.id, data=body
     )
     await db.commit()
     return ApiResponse(data=ConsultationOut.model_validate(consultation), message="Consultation updated.")
@@ -127,7 +127,7 @@ async def pause_consultation(
     current: CurrentUser = Depends(require_roles(RoleName.doctor)),
 ) -> ApiResponse[ConsultationOut]:
     consultation = await consultation_service.pause_consultation(
-        db, consultation_id=consultation_id, hospital_id=current.hospital_id, doctor_id=current.user.id
+        db, consultation_id=consultation_id, hospital_id=current.hospital, doctor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=ConsultationOut.model_validate(consultation), message="Recording paused.")
@@ -140,7 +140,7 @@ async def resume_consultation(
     current: CurrentUser = Depends(require_roles(RoleName.doctor)),
 ) -> ApiResponse[ConsultationOut]:
     consultation = await consultation_service.resume_consultation(
-        db, consultation_id=consultation_id, hospital_id=current.hospital_id, doctor_id=current.user.id
+        db, consultation_id=consultation_id, hospital_id=current.hospital, doctor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=ConsultationOut.model_validate(consultation), message="Recording resumed.")
@@ -153,7 +153,7 @@ async def save_draft(
     current: CurrentUser = Depends(require_roles(RoleName.doctor)),
 ) -> ApiResponse[ConsultationOut]:
     consultation = await consultation_service.save_draft(
-        db, consultation_id=consultation_id, hospital_id=current.hospital_id, doctor_id=current.user.id
+        db, consultation_id=consultation_id, hospital_id=current.hospital, doctor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=ConsultationOut.model_validate(consultation), message="Consultation saved as draft.")
@@ -170,7 +170,7 @@ async def stop_consultation(
     consultation = await consultation_service.stop_consultation(
         db,
         consultation_id=consultation_id,
-        hospital_id=current.hospital_id,
+        hospital_id=current.hospital,
         doctor_id=current.user.id,
         audio_file=audio_file,
         audio_duration_seconds=audio_duration_seconds,
@@ -188,7 +188,7 @@ async def approve_consultation(
     current: CurrentUser = Depends(require_roles(RoleName.doctor)),
 ) -> ApiResponse[ConsultationOut]:
     consultation = await consultation_service.approve_consultation(
-        db, consultation_id=consultation_id, hospital_id=current.hospital_id, doctor_id=current.user.id
+        db, consultation_id=consultation_id, hospital_id=current.hospital, doctor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=ConsultationOut.model_validate(consultation), message="Consultation approved.")
@@ -201,7 +201,7 @@ async def cancel_consultation(
     current: CurrentUser = Depends(require_roles(RoleName.doctor)),
 ) -> ApiResponse[None]:
     await consultation_service.cancel_consultation(
-        db, consultation_id=consultation_id, hospital_id=current.hospital_id, doctor_id=current.user.id
+        db, consultation_id=consultation_id, hospital_id=current.hospital, doctor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=None, message="Consultation cancelled.")

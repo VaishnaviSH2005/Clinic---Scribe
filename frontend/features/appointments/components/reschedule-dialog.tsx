@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import type { Appointment } from "@/types/appointment";
 
-import { useAppointmentMutations } from "../hooks/use-appointments";
+import { isPastTimeError, useAppointmentMutations } from "../hooks/use-appointments";
+import { PastTimeDialog } from "./past-time-dialog";
 import { rescheduleFormSchema, type RescheduleFormValues } from "../utils/schemas";
 
 interface RescheduleDialogProps {
@@ -21,6 +22,7 @@ interface RescheduleDialogProps {
 
 export function RescheduleDialog({ open, onOpenChange, appointment }: RescheduleDialogProps) {
   const { reschedule } = useAppointmentMutations();
+  const [pastTime, setPastTime] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -36,9 +38,28 @@ export function RescheduleDialog({ open, onOpenChange, appointment }: Reschedule
 
   const onSubmit = (values: RescheduleFormValues) => {
     if (!appointment) return;
+    const scheduledAt = new Date(values.scheduled_at).toISOString();
     reschedule.mutate(
-      { id: appointment.id, scheduledAt: new Date(values.scheduled_at).toISOString() },
-      { onSuccess: () => onOpenChange(false) },
+      { id: appointment.id, scheduledAt },
+      {
+        onSuccess: () => onOpenChange(false),
+        onError: (error) => {
+          if (isPastTimeError(error)) setPastTime(scheduledAt);
+        },
+      },
+    );
+  };
+
+  const bookAnyway = () => {
+    if (!appointment || !pastTime) return;
+    reschedule.mutate(
+      { id: appointment.id, scheduledAt: pastTime, allowPast: true },
+      {
+        onSuccess: () => {
+          setPastTime(null);
+          onOpenChange(false);
+        },
+      },
     );
   };
 
@@ -72,6 +93,12 @@ export function RescheduleDialog({ open, onOpenChange, appointment }: Reschedule
           </div>
         </form>
       </DialogContent>
+      <PastTimeDialog
+        open={pastTime !== null}
+        onChooseAnother={() => setPastTime(null)}
+        onBookAnyway={bookAnyway}
+        loading={reschedule.isPending}
+      />
     </Dialog>
   );
 }

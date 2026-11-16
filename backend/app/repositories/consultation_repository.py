@@ -2,7 +2,7 @@
 
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.consultation import Consultation
@@ -12,6 +12,21 @@ from app.models.enums import ConsultationStatus
 class ConsultationRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def find_by_id_prefix(
+        self, prefix: str, *, hospital_id: uuid.UUID, doctor_id: uuid.UUID | None, limit: int = 5
+    ) -> list[Consultation]:
+        """Search by (the start of) the consultation ID (PRD Ch6.13), scoped to one
+        hospital and, for a doctor, to their own consultations."""
+        stmt = select(Consultation).where(
+            Consultation.hospital_id == hospital_id,
+            Consultation.deleted_at.is_(None),
+            cast(Consultation.id, String).like(f"{prefix}%"),
+        )
+        if doctor_id is not None:
+            stmt = stmt.where(Consultation.doctor_id == doctor_id)
+        result = await self.db.execute(stmt.limit(limit))
+        return list(result.scalars().all())
 
     async def get_by_id(self, consultation_id: uuid.UUID, *, hospital_id: uuid.UUID) -> Consultation | None:
         result = await self.db.execute(

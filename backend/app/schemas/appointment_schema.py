@@ -13,10 +13,14 @@ class AppointmentCreate(BaseModel):
     doctor_id: uuid.UUID
     department_id: uuid.UUID
     scheduled_at: datetime
+    # A time that has already passed is refused unless the user explicitly confirms
+    # ("book anyway"), e.g. to back-fill a visit that already happened.
+    allow_past: bool = False
 
 
 class AppointmentReschedule(BaseModel):
     scheduled_at: datetime
+    allow_past: bool = False
 
 
 class AppointmentOut(BaseModel):

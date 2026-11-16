@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 [tool.ruff]
 line-length = 115
 target-version = "py312"
-exclude = ["alembic/versions"]
+exclude = ["alembic/versions", "e2e"]  # e2e/ is a standalone live-stack test harness, not application code
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

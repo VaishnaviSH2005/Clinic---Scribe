@@ -42,7 +42,7 @@ async def create_receptionist(
     current: CurrentUser = Depends(require_roles(RoleName.hospital_admin)),
 ) -> ApiResponse[UserOut]:
     receptionist = await user_service.create_receptionist(
-        db, hospital_id=current.hospital_id, data=body, actor_id=current.user.id
+        db, hospital_id=current.hospital, data=body, actor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=_to_out(receptionist), message="Receptionist created successfully.")
@@ -58,7 +58,7 @@ async def list_receptionists(
 ) -> ApiListResponse[UserOut]:
     receptionists, total = await user_service.list_users(
         db,
-        hospital_id=current.hospital_id,
+        hospital_id=current.hospital,
         role_name=RoleName.receptionist,
         status=status,
         search=search,
@@ -79,7 +79,7 @@ async def update_receptionist(
     current: CurrentUser = Depends(require_roles(RoleName.hospital_admin)),
 ) -> ApiResponse[UserOut]:
     receptionist = await user_service.update_user(
-        db, user_id=receptionist_id, hospital_id=current.hospital_id, data=body, actor_id=current.user.id
+        db, user_id=receptionist_id, hospital_id=current.hospital, data=body, actor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=_to_out(receptionist), message="Receptionist updated successfully.")
@@ -93,7 +93,7 @@ async def update_receptionist_status(
     current: CurrentUser = Depends(require_roles(RoleName.hospital_admin)),
 ) -> ApiResponse[UserOut]:
     receptionist = await user_service.set_user_status(
-        db, user_id=receptionist_id, hospital_id=current.hospital_id, status=body.status, actor_id=current.user.id
+        db, user_id=receptionist_id, hospital_id=current.hospital, status=body.status, actor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=_to_out(receptionist), message="Receptionist status updated successfully.")

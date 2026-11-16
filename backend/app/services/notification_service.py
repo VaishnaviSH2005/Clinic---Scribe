@@ -26,10 +26,18 @@ from app.core.exceptions import NotFoundError
 from app.models.enums import NotificationType
 from app.models.platform import Notification
 from app.repositories.notification_repository import NotificationRepository
+from app.services import settings_service
 
 
 class NotificationNotFoundError(NotFoundError):
     error_code = "NOTIFICATION_NOT_FOUND"
+
+
+async def _is_enabled(db: AsyncSession, *, user_id: uuid.UUID, notification_type: str) -> bool:
+    """Honour the recipient's saved notification preferences (Settings page).
+    Types without a toggle (`appointment_reminder`, `system`) are always sent."""
+    preferences = (await settings_service.get_user_settings(db, user_id=user_id)).notification_preferences
+    return bool(getattr(preferences, notification_type, True))
 
 
 async def notify_user(
@@ -40,7 +48,11 @@ async def notify_user(
     title: str,
     message: str | None,
     reference_id: uuid.UUID | None,
-) -> Notification:
+) -> Notification | None:
+    """Creates the notification unless the recipient switched that type off,
+    in which case nothing is stored and `None` is returned."""
+    if not await _is_enabled(db, user_id=user_id, notification_type=notification_type):
+        return None
     notification = Notification(
         user_id=user_id,
         type=NotificationType(notification_type),

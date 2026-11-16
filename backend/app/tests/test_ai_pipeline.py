@@ -9,6 +9,8 @@ ownership, full pipeline persistence) would require a live database, which
 this sandbox does not have — see the final milestone report.
 """
 
+import uuid
+
 import pytest
 
 from app.core import ai_bridge  # noqa: F401  (adds ai-services/ to sys.path)
@@ -246,7 +248,7 @@ async def test_ai_queue_enqueue_dequeue_roundtrip(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(ai_queue, "get_redis", lambda: fake)
 
     consultation_id = "11111111-1111-1111-1111-111111111111"
-    await ai_queue.enqueue_ai_job(consultation_id, stage=None)
+    await ai_queue.enqueue_ai_job(uuid.UUID(consultation_id), stage=None)
     job = await ai_queue.dequeue_ai_job(timeout_seconds=1)
     assert job == {"consultation_id": consultation_id, "stage": None}
 
@@ -258,7 +260,7 @@ async def test_ai_queue_carries_stage_for_single_stage_retry(monkeypatch: pytest
     monkeypatch.setattr(ai_queue, "get_redis", lambda: fake)
 
     consultation_id = "22222222-2222-2222-2222-222222222222"
-    await ai_queue.enqueue_ai_job(consultation_id, stage="generate_soap")
+    await ai_queue.enqueue_ai_job(uuid.UUID(consultation_id), stage="generate_soap")
     job = await ai_queue.dequeue_ai_job(timeout_seconds=1)
     assert job == {"consultation_id": consultation_id, "stage": "generate_soap"}
 

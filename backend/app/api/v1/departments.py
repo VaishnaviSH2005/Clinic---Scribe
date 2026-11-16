@@ -23,7 +23,7 @@ async def create_department(
     current: CurrentUser = Depends(require_roles(RoleName.hospital_admin)),
 ) -> ApiResponse[DepartmentOut]:
     department = await department_service.create_department(
-        db, hospital_id=current.hospital_id, data=body, actor_id=current.user.id
+        db, hospital_id=current.hospital, data=body, actor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=DepartmentOut.model_validate(department), message="Department created successfully.")
@@ -53,7 +53,7 @@ async def update_department(
     current: CurrentUser = Depends(require_roles(RoleName.hospital_admin)),
 ) -> ApiResponse[DepartmentOut]:
     department = await department_service.update_department(
-        db, department_id=department_id, hospital_id=current.hospital_id, data=body, actor_id=current.user.id
+        db, department_id=department_id, hospital_id=current.hospital, data=body, actor_id=current.user.id
     )
     await db.commit()
     return ApiResponse(data=DepartmentOut.model_validate(department), message="Department updated successfully.")
@@ -69,7 +69,7 @@ async def update_department_status(
     department = await department_service.set_department_status(
         db,
         department_id=department_id,
-        hospital_id=current.hospital_id,
+        hospital_id=current.hospital,
         status=body.status,
         actor_id=current.user.id,
     )

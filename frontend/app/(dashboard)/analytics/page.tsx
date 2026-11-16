@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAnalytics } from "@/features/analytics/hooks/use-analytics";
+import { useAuth } from "@/features/authentication/hooks/use-auth";
 
 // recharts is a large dependency used only on this page — dynamically
 // imported so it never ships in the shared bundle for every other route.
@@ -23,6 +24,9 @@ function isoDaysAgo(days: number): string {
 }
 
 export default function AnalyticsPage() {
+  const { user } = useAuth();
+  // Super Admin sees platform-wide aggregate counts only (PRD Ch6.3), never one hospital's internals.
+  const isPlatform = user?.role === "super_admin";
   const [dateFrom, setDateFrom] = useState(isoDaysAgo(29));
   const [dateTo, setDateTo] = useState(isoDaysAgo(0));
   const { data, isLoading, isError } = useAnalytics({ dateFrom, dateTo });
@@ -33,7 +37,9 @@ export default function AnalyticsPage() {
         <div>
           <h1 className="text-h2 text-text-primary">Analytics</h1>
           <p className="mt-1 text-body text-text-secondary">
-            Operational insights and consultation trends.
+            {isPlatform
+              ? "Platform-wide activity across all hospitals (aggregate counts only)."
+              : "Operational insights and consultation trends."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -139,24 +145,63 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Consultations by doctor</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <NamedCountTable data={data.consultations_by_doctor} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Consultations by department</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <NamedCountTable data={data.consultations_by_department} />
-              </CardContent>
-            </Card>
-          </div>
+          {isPlatform ? (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Consultations by hospital</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <NamedCountTable data={data.consultations_by_hospital} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Hospitals by status</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <NamedCountTable
+                    data={Object.entries(data.hospitals_by_status).map(([name, count]) => ({
+                      name,
+                      count,
+                    }))}
+                  />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Licenses by status</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <NamedCountTable
+                    data={Object.entries(data.licenses_by_status).map(([name, count]) => ({
+                      name,
+                      count,
+                    }))}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Consultations by doctor</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <NamedCountTable data={data.consultations_by_doctor} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Consultations by department</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <NamedCountTable data={data.consultations_by_department} />
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </>
       )}
     </div>

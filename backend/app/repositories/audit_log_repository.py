@@ -18,9 +18,16 @@ class AuditLogRepository:
         return entry
 
     async def list_by_hospital(
-        self, hospital_id: uuid.UUID, *, page: int = 1, page_size: int = 20
+        self,
+        hospital_id: uuid.UUID,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        actions: frozenset[str] | None = None,
     ) -> tuple[list[AuditLog], int]:
         base = select(AuditLog).where(AuditLog.hospital_id == hospital_id)
+        if actions is not None:
+            base = base.where(AuditLog.action.in_(actions))
         count_result = await self.db.execute(select(func.count()).select_from(base.subquery()))
         total = count_result.scalar_one()
         stmt = base.order_by(AuditLog.created_at.desc()).offset((page - 1) * page_size).limit(page_size)

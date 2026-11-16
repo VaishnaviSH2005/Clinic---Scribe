@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.appointment import Appointment
@@ -13,6 +13,19 @@ from app.models.enums import AppointmentStatus
 class AppointmentRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def find_by_id_prefix(self, prefix: str, *, hospital_id: uuid.UUID, limit: int = 5) -> list[Appointment]:
+        """Search by (the start of) the appointment ID, scoped to one hospital (PRD Ch6.13)."""
+        result = await self.db.execute(
+            select(Appointment)
+            .where(
+                Appointment.hospital_id == hospital_id,
+                Appointment.deleted_at.is_(None),
+                cast(Appointment.id, String).like(f"{prefix}%"),
+            )
+            .limit(limit)
+        )
+        return list(result.scalars().all())
 
     async def get_by_id(self, appointment_id: uuid.UUID, *, hospital_id: uuid.UUID) -> Appointment | None:
         result = await self.db.execute(

@@ -42,7 +42,7 @@ async def _get_owned_consultation(
     private ownership check so this router never diverges from the same
     rule enforced on the main consultations endpoints."""
     consultation = await consultation_service.get_consultation(
-        db, consultation_id=consultation_id, hospital_id=current.hospital_id
+        db, consultation_id=consultation_id, hospital_id=current.hospital
     )
     consultation_service._ensure_owner(consultation, current.user.id)  # noqa: SLF001
     return consultation
@@ -54,7 +54,7 @@ async def _enqueue_retry(
     await ai_pipeline_service.validate_retry_request(
         db,
         consultation_id=consultation_id,
-        hospital_id=current.hospital_id,
+        hospital_id=current.hospital,
         doctor_id=current.user.id,
         stage=stage,
     )
@@ -161,7 +161,7 @@ async def update_soap(
     note = await ai_pipeline_service.edit_soap(
         db,
         consultation_id=consultation_id,
-        hospital_id=current.hospital_id,
+        hospital_id=current.hospital,
         doctor_id=current.user.id,
         data=body,
     )
@@ -189,7 +189,7 @@ async def update_summary(
     summary = await ai_pipeline_service.edit_summary(
         db,
         consultation_id=consultation_id,
-        hospital_id=current.hospital_id,
+        hospital_id=current.hospital,
         doctor_id=current.user.id,
         data=body,
     )

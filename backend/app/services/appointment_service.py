@@ -1,7 +1,7 @@
 """Appointment Management business logic (PRD Ch6.2/Ch8.10, Ch16.8)."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,28 @@ from app.services.patient_service import get_patient
 class DoctorUnavailableError(AppError):
     status_code = 409
     error_code = "DOCTOR_UNAVAILABLE"
+
+
+class AppointmentInPastError(AppError):
+    status_code = 422
+    error_code = "APPOINTMENT_IN_PAST"
+
+
+# "Right now" bookings made a moment ago must not be flagged as past.
+PAST_GRACE = timedelta(minutes=5)
+
+
+def _ensure_not_in_past(scheduled_at: datetime, *, allow_past: bool) -> bool:
+    """Refuse a time that has already passed unless the user confirmed it.
+    Returns True when a confirmed past-dated (back-filled) time is accepted."""
+    when = scheduled_at if scheduled_at.tzinfo else scheduled_at.replace(tzinfo=timezone.utc)
+    if when >= datetime.now(timezone.utc) - PAST_GRACE:
+        return False
+    if not allow_past:
+        raise AppointmentInPastError(
+            "That time has already passed. Choose a later time, or confirm to book it anyway."
+        )
+    return True
 
 
 class InvalidAppointmentStateError(AppError):
@@ -58,6 +80,8 @@ async def create_appointment(
         department_id=data.department_id,
     )
 
+    backdated = _ensure_not_in_past(data.scheduled_at, allow_past=data.allow_past)
+
     repo = AppointmentRepository(db)
     if await repo.find_conflict(data.doctor_id, data.scheduled_at):
         raise DoctorUnavailableError("This doctor already has an appointment scheduled at that time.")
@@ -93,6 +117,7 @@ async def create_appointment(
         hospital_id=hospital_id,
         entity_type="appointment",
         entity_id=appointment.id,
+        metadata={"backdated": True} if backdated else None,
     )
     return appointment
 
@@ -135,12 +160,15 @@ async def reschedule_appointment(
     hospital_id: uuid.UUID,
     scheduled_at: datetime,
     actor_id: uuid.UUID,
+    allow_past: bool = False,
 ) -> Appointment:
     repo = AppointmentRepository(db)
     appointment = await get_appointment(db, appointment_id=appointment_id, hospital_id=hospital_id)
 
     if appointment.status in (AppointmentStatus.completed, AppointmentStatus.cancelled):
         raise InvalidAppointmentStateError("Completed or cancelled appointments cannot be rescheduled.")
+
+    _ensure_not_in_past(scheduled_at, allow_past=allow_past)
 
     if await repo.find_conflict(appointment.doctor_id, scheduled_at, exclude_id=appointment.id):
         raise DoctorUnavailableError("This doctor already has an appointment scheduled at that time.")

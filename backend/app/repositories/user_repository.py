@@ -46,8 +46,10 @@ class UserRepository:
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[User], int]:
-        stmt = select(User).join(Role, User.role_id == Role.id).where(
-            User.hospital_id == hospital_id, User.deleted_at.is_(None)
+        stmt = (
+            select(User)
+            .join(Role, User.role_id == Role.id)
+            .where(User.hospital_id == hospital_id, User.deleted_at.is_(None))
         )
         if role_name is not None:
             stmt = stmt.where(Role.name == role_name)

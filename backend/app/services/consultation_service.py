@@ -63,7 +63,7 @@ async def start_consultation(
     *,
     hospital_id: uuid.UUID,
     doctor_id: uuid.UUID,
-    department_id: uuid.UUID,
+    department_id: uuid.UUID | None,
     data: ConsultationStartRequest,
 ) -> Consultation:
     await get_patient(db, patient_id=data.patient_id, hospital_id=hospital_id, include_archived=False)
@@ -76,13 +76,21 @@ async def start_consultation(
                 "The requested appointment could not be located.", error_code="APPOINTMENT_NOT_FOUND"
             )
 
+    resolved_department_id = appointment.department_id if appointment else department_id
+    if resolved_department_id is None:
+        raise AppError(
+            "Your account has no assigned department and no appointment was provided.",
+            error_code="DEPARTMENT_REQUIRED",
+            status_code=422,
+        )
+
     now = datetime.now(timezone.utc)
     consultation = Consultation(
         hospital_id=hospital_id,
         patient_id=data.patient_id,
         doctor_id=doctor_id,
         appointment_id=data.appointment_id,
-        department_id=appointment.department_id if appointment else department_id,
+        department_id=resolved_department_id,
         status=ConsultationStatus.in_progress,
         chief_complaint=data.chief_complaint,
         started_at=now,
@@ -169,7 +177,9 @@ async def get_workspace(
 
 
 SCOPE_STATUSES: dict[str, list[ConsultationStatus]] = {
-    "active": [ConsultationStatus.in_progress],
+    # ai_processing is included in "active" so consultations remain visible
+    # while the AI pipeline is running after the doctor stops recording (P1 fix).
+    "active": [ConsultationStatus.in_progress, ConsultationStatus.ai_processing],
     "drafts": [ConsultationStatus.draft],
     "previous": COMPLETED_STATUSES,
 }
@@ -344,7 +354,11 @@ async def stop_consultation(
             entity_type="consultation",
             entity_id=consultation.id,
         )
-        await db.flush()
+        # Commit BEFORE queueing: the worker pops the job instantly and loads the
+        # consultation in its own session. Enqueueing on top of an uncommitted
+        # transaction let it read the old `in_progress` status, skip the job as
+        # "not in ai_processing", and drop it forever (consultation stuck).
+        await db.commit()
         try:
             await enqueue_ai_job(consultation.id)
         except Exception as exc:  # noqa: BLE001 - Redis unreachable must not fail the stop request

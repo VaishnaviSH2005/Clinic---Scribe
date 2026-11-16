@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 
@@ -13,8 +13,10 @@ import { PatientSelect } from "@/components/forms/patient-select";
 import { useDepartments } from "@/features/settings/hooks/use-departments";
 import { useDoctors } from "@/features/settings/hooks/use-staff";
 
-import { useAppointmentMutations } from "../hooks/use-appointments";
+import { isPastTimeError, useAppointmentMutations } from "../hooks/use-appointments";
+import { PastTimeDialog } from "./past-time-dialog";
 import { appointmentFormSchema, type AppointmentFormValues } from "../utils/schemas";
+import type { AppointmentCreatePayload } from "@/types/appointment";
 
 interface AppointmentFormDialogProps {
   open: boolean;
@@ -28,6 +30,7 @@ export function AppointmentFormDialog({
   defaultPatientId,
 }: AppointmentFormDialogProps) {
   const { create } = useAppointmentMutations();
+  const [pastPayload, setPastPayload] = useState<AppointmentCreatePayload | null>(null);
   const { data: departmentsData } = useDepartments(1, 100);
   const { data: doctorsData } = useDoctors({ page: 1, pageSize: 100 });
   const departments = departmentsData?.data ?? [];
@@ -53,9 +56,25 @@ export function AppointmentFormDialog({
   }, [open, defaultPatientId, reset]);
 
   const onSubmit = (values: AppointmentFormValues) => {
+    const payload = { ...values, scheduled_at: new Date(values.scheduled_at).toISOString() };
+    create.mutate(payload, {
+      onSuccess: () => onOpenChange(false),
+      onError: (error) => {
+        if (isPastTimeError(error)) setPastPayload(payload);
+      },
+    });
+  };
+
+  const bookAnyway = () => {
+    if (!pastPayload) return;
     create.mutate(
-      { ...values, scheduled_at: new Date(values.scheduled_at).toISOString() },
-      { onSuccess: () => onOpenChange(false) },
+      { ...pastPayload, allow_past: true },
+      {
+        onSuccess: () => {
+          setPastPayload(null);
+          onOpenChange(false);
+        },
+      },
     );
   };
 
@@ -130,6 +149,12 @@ export function AppointmentFormDialog({
           </div>
         </form>
       </DialogContent>
+      <PastTimeDialog
+        open={pastPayload !== null}
+        onChooseAnother={() => setPastPayload(null)}
+        onBookAnyway={bookAnyway}
+        loading={create.isPending}
+      />
     </Dialog>
   );
 }

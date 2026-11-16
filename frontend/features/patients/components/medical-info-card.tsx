@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { usePatientMedicalProfile } from "../hooks/use-patient-detail";
+import { useCanModifyPatients } from "../hospital-scope";
 import { MedicalProfileDialog } from "./medical-profile-dialog";
 
 function TagList({
@@ -34,14 +35,17 @@ function TagList({
 export function MedicalInfoCard({ patientId }: { patientId: string }) {
   const { data: profile, isLoading } = usePatientMedicalProfile(patientId);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const canModify = useCanModifyPatients();
 
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <CardTitle>Medical information</CardTitle>
-        <Button size="sm" variant="secondary" onClick={() => setDialogOpen(true)}>
-          Edit
-        </Button>
+        {canModify && (
+          <Button size="sm" variant="secondary" onClick={() => setDialogOpen(true)}>
+            Edit
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {isLoading ? (

@@ -51,7 +51,7 @@ async def _save(
     unsupported_message: str,
     max_mb: int,
 ) -> tuple[str, str, int]:
-    content_type = file.content_type or ""
+    content_type = (file.content_type or "").split(";", 1)[0].strip()
     if content_type not in allowed_types:
         raise error_cls(unsupported_message)
 

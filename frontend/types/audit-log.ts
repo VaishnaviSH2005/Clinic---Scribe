@@ -7,4 +7,8 @@ export interface AuditLog {
   entity_id: string | null;
   ip_address: string | null;
   created_at: string;
+  // Resolved server-side so the UI never has to show raw UUIDs.
+  user_name: string | null;
+  user_email: string | null;
+  hospital_name: string | null;
 }

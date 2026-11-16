@@ -13,6 +13,11 @@ from app.schemas.department_schema import DepartmentCreate, DepartmentUpdate
 from app.services.audit_service import record_audit_event
 
 
+class DuplicateDepartmentError(AppError):
+    status_code = 409
+    error_code = "DUPLICATE_DEPARTMENT"
+
+
 class DepartmentHasActiveDoctorsError(AppError):
     status_code = 409
     error_code = "DEPARTMENT_HAS_ACTIVE_DOCTORS"
@@ -21,9 +26,12 @@ class DepartmentHasActiveDoctorsError(AppError):
 async def create_department(
     db: AsyncSession, *, hospital_id: uuid.UUID, data: DepartmentCreate, actor_id: uuid.UUID
 ) -> Department:
+    name = data.name.strip()
+    if await DepartmentRepository(db).name_exists(hospital_id, name):
+        raise DuplicateDepartmentError("A department with this name already exists.")
     department = Department(
         hospital_id=hospital_id,
-        name=data.name,
+        name=name,
         head_of_department_id=data.head_of_department_id,
         status=DepartmentStatus.active,
         created_by=actor_id,
@@ -63,7 +71,12 @@ async def update_department(
     actor_id: uuid.UUID,
 ) -> Department:
     department = await get_department(db, department_id=department_id, hospital_id=hospital_id)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    changes = data.model_dump(exclude_unset=True)
+    if "name" in changes and changes["name"] is not None:
+        changes["name"] = changes["name"].strip()
+        if await DepartmentRepository(db).name_exists(hospital_id, changes["name"], exclude_id=department.id):
+            raise DuplicateDepartmentError("A department with this name already exists.")
+    for field, value in changes.items():
         setattr(department, field, value)
     department.updated_by = actor_id
     await DepartmentRepository(db).save(department)

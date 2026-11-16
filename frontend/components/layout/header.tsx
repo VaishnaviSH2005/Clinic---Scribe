@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { GlobalSearch } from "@/features/search/components/global-search";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { useAuth } from "@/features/authentication/hooks/use-auth";
@@ -15,7 +16,10 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-10 flex h-[72px] items-center justify-between gap-4 border-b border-border bg-surface px-4 sm:px-6">
-      <GlobalSearch />
+      <div className="flex min-w-0 flex-1 items-center gap-6">
+        <Breadcrumbs />
+        <GlobalSearch />
+      </div>
       <div className="flex shrink-0 items-center gap-2 sm:gap-4">
         <NotificationBell />
         <button

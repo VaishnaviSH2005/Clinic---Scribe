@@ -119,7 +119,9 @@ async def update_hospital(
     return hospital
 
 
-async def upload_logo(db: AsyncSession, *, hospital_id: uuid.UUID, file: UploadFile, actor_id: uuid.UUID) -> Hospital:
+async def upload_logo(
+    db: AsyncSession, *, hospital_id: uuid.UUID, file: UploadFile, actor_id: uuid.UUID
+) -> Hospital:
     hospital = await get_hospital(db, hospital_id=hospital_id)
     relative_url, _extension, _size_bytes = await save_upload(file, subdir="hospital-logos")
     hospital.logo_url = relative_url

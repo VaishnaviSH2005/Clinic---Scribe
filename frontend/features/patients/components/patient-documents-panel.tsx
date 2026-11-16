@@ -10,12 +10,15 @@ import { formatFileSize } from "@/lib/format";
 import { formatDate } from "@/lib/date";
 
 import { usePatientDetailMutations, usePatientDocuments } from "../hooks/use-patient-detail";
+import { useCanModifyPatients, useHospitalScope } from "../hospital-scope";
 import { patientService } from "../services/patient.service";
 
 export function PatientDocumentsPanel({ patientId }: { patientId: string }) {
   const { data: documents, isLoading } = usePatientDocuments(patientId);
   const { uploadDocument } = usePatientDetailMutations(patientId);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canModify = useCanModifyPatients();
+  const hospitalId = useHospitalScope();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -27,13 +30,15 @@ export function PatientDocumentsPanel({ patientId }: { patientId: string }) {
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <CardTitle>Documents</CardTitle>
-        <Button
-          size="sm"
-          loading={uploadDocument.isPending}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Upload className="h-4 w-4" /> Upload document
-        </Button>
+        {canModify && (
+          <Button
+            size="sm"
+            loading={uploadDocument.isPending}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="h-4 w-4" /> Upload document
+          </Button>
+        )}
         <input
           ref={fileInputRef}
           type="file"
@@ -64,7 +69,7 @@ export function PatientDocumentsPanel({ patientId }: { patientId: string }) {
                   </p>
                 </div>
                 <a
-                  href={patientService.documentDownloadUrl(patientId, doc.id)}
+                  href={patientService.documentDownloadUrl(patientId, doc.id, hospitalId)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1 text-body text-primary hover:underline"

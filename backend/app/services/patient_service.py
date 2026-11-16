@@ -36,9 +36,12 @@ def patient_age(patient: Patient) -> int:
 
 
 async def _generate_uhid(repo: PatientRepository, hospital_id: uuid.UUID) -> str:
-    """PRD Ch8.4 — format CLN-YYYY-NNNNNN, permanent once assigned."""
+    """PRD Ch8.4 — format CLN-YYYY-NNNNNN, permanent once assigned. The sequence
+    is platform-wide because the UHID is globally unique (see
+    `PatientRepository.max_uhid_sequence`); `hospital_id` is kept in the
+    signature for callers/tests."""
     year = datetime.now(timezone.utc).year
-    sequence = await repo.count_this_year(hospital_id, year) + 1
+    sequence = await repo.max_uhid_sequence(year) + 1
     return f"CLN-{year}-{sequence:06d}"
 
 

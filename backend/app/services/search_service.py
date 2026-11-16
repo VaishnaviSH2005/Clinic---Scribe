@@ -5,6 +5,7 @@ consultations or reports (Ch6 RBAC), and a doctor only ever sees their own
 consultations/reports even though patients are hospital-wide.
 """
 
+import re
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +19,8 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.search_schema import SearchResultItem, SearchResultsOut
 
 _MAX_PER_CATEGORY = 5
+# A full or partial UUID as printed in the UI (hex digits and dashes, 6+ characters).
+_ID_FRAGMENT = re.compile(r"^[0-9a-fA-F-]{6,36}$")
 
 
 async def global_search(
@@ -27,6 +30,34 @@ async def global_search(
         return SearchResultsOut(query=query, results=[])
 
     results: list[SearchResultItem] = []
+
+    # PRD Ch6.13: search also finds an Appointment ID or Consultation ID directly.
+    fragment = query.strip().lower()
+    if _ID_FRAGMENT.match(fragment):
+        if role in (RoleName.hospital_admin, RoleName.receptionist, RoleName.doctor):
+            for appt in await AppointmentRepository(db).find_by_id_prefix(fragment, hospital_id=hospital_id):
+                results.append(
+                    SearchResultItem(
+                        id=appt.id,
+                        type="appointment",
+                        title=f"Appointment {str(appt.id)[:8]} · {appt.scheduled_at:%d %b %Y %H:%M}",
+                        subtitle=appt.status.value.replace("_", " ").title(),
+                        href="/appointments",
+                    )
+                )
+        if role == RoleName.doctor:  # Consultation module is Doctor-only (PRD Ch6.15)
+            for consultation in await ConsultationRepository(db).find_by_id_prefix(
+                fragment, hospital_id=hospital_id, doctor_id=user_id
+            ):
+                results.append(
+                    SearchResultItem(
+                        id=consultation.id,
+                        type="consultation",
+                        title=f"Consultation {str(consultation.id)[:8]}",
+                        subtitle=consultation.status.value.replace("_", " ").title(),
+                        href=f"/consultations/{consultation.id}",
+                    )
+                )
 
     patients, _ = await PatientRepository(db).list_by_hospital(
         hospital_id, search=query, page=1, page_size=_MAX_PER_CATEGORY
@@ -59,13 +90,17 @@ async def global_search(
                     )
                 )
 
-    if role in (RoleName.hospital_admin, RoleName.doctor):
+    if role in (RoleName.hospital_admin, RoleName.doctor, RoleName.receptionist):
         consultation_repo = ConsultationRepository(db)
         report_repo = ReportRepository(db)
         for patient_id in matched_patient_ids[:_MAX_PER_CATEGORY]:
-            consultations = await consultation_repo.list_by_patient(patient_id, limit=2)
+            # Consultations are Doctor-only (PRD Ch6.15); reports are viewable by Hospital
+            # Admin and Receptionist too (view only).
+            consultations = (
+                await consultation_repo.list_by_patient(patient_id, limit=2) if role == RoleName.doctor else []
+            )
             for consultation in consultations:
-                if role == RoleName.doctor and consultation.doctor_id != user_id:
+                if consultation.doctor_id != user_id:
                     continue
                 results.append(
                     SearchResultItem(

@@ -20,12 +20,14 @@ Design invariants (Ch17.6 / Ch10.15):
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import ai_bridge  # noqa: F401  (adds ai-services/ to sys.path)
+from app.core.ai_queue import enqueue_ai_job
 from app.core.config import settings
 from app.core.exceptions import AppError, NotFoundError
 from app.core.logging import logger
@@ -486,6 +488,31 @@ async def _stage_generate_recommendations(
             user_id=None,
             metadata={"stage": STAGE_GENERATE_RECOMMENDATIONS, "error": "; ".join(failed_substages)},
         )
+
+
+STUCK_AFTER = timedelta(minutes=10)
+
+
+async def recover_stuck_consultations(db: AsyncSession) -> int:
+    """Re-queues consultations left in `ai_processing` with no worker activity
+    for `STUCK_AFTER` (worker crashed mid-job, Redis was flushed/restarted, or a
+    job was lost). The PRD requires that a consultation is never lost because
+    of an AI failure (Ch9.21). Safe to run repeatedly: `run_pipeline` skips any
+    consultation no longer in `ai_processing` and stages that already have
+    output are not repeated. Returns how many were re-queued."""
+    cutoff = _now() - STUCK_AFTER
+    result = await db.execute(
+        select(Consultation.id).where(
+            Consultation.status == ConsultationStatus.ai_processing,
+            Consultation.deleted_at.is_(None),
+            Consultation.updated_at < cutoff,
+        )
+    )
+    stuck_ids = list(result.scalars().all())
+    for consultation_id in stuck_ids:
+        await enqueue_ai_job(consultation_id)
+        logger.warning("AI pipeline: re-queued stuck consultation %s", consultation_id)
+    return len(stuck_ids)
 
 
 async def run_pipeline(db: AsyncSession, *, consultation_id: uuid.UUID) -> None:

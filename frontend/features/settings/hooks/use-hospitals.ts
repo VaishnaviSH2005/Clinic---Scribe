@@ -11,10 +11,11 @@ import type {
 
 import { hospitalService } from "../services/hospital.service";
 
-export function useHospitals(page: number, pageSize: number) {
+export function useHospitals(page: number, pageSize: number, enabled = true) {
   return useQuery({
     queryKey: ["hospitals", page, pageSize],
     queryFn: () => hospitalService.list(page, pageSize),
+    enabled,
   });
 }
 

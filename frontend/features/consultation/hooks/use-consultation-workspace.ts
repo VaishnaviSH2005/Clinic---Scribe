@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -7,27 +8,42 @@ import { toast } from "sonner";
 import { ROUTES } from "@/constants/routes";
 import { ApiClientError } from "@/lib/api-client";
 import type { AiRetryStage, SoapEditPayload, SummaryEditPayload } from "@/types/ai";
-import type { ConsultationUpdatePayload, ConsultationWorkspace } from "@/types/consultation";
+import type {
+  ConsultationStatus,
+  ConsultationUpdatePayload,
+  ConsultationWorkspace,
+} from "@/types/consultation";
 
 import { consultationService } from "../services/consultation.service";
 
 const AI_PROCESSING_POLL_MS = 4000;
 
 export function useConsultationWorkspace(id: string) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ["consultations", id],
     queryFn: () => consultationService.getWorkspace(id),
     enabled: !!id,
     refetchOnWindowFocus: false,
-    // A doctor can leave and re-enter the workspace while AI processing is
-    // still running (Ch10.14) — polling here, rather than only on mount,
-    // is what makes the processing/failed/completed state stay live
-    // without a manual refresh.
-    refetchInterval: (query) => {
-      const data = query.state.data as ConsultationWorkspace | undefined;
+    // Poll every 4 s while AI is running; stops automatically once the status
+    // changes to pending_review, approved, or any non-processing state (Ch10.14).
+    refetchInterval: (q) => {
+      const data = q.state.data as ConsultationWorkspace | undefined;
       return data?.consultation.status === "ai_processing" ? AI_PROCESSING_POLL_MS : false;
     },
   });
+
+  // Detect the ai_processing → pending_review transition and toast once so the
+  // doctor knows AI has finished without having to watch the panel actively.
+  const prevStatus = useRef<ConsultationStatus | null>(null);
+  useEffect(() => {
+    const status = query.data?.consultation.status ?? null;
+    if (prevStatus.current === "ai_processing" && status === "pending_review") {
+      toast.success("AI processing complete. The consultation is ready for your review.");
+    }
+    prevStatus.current = status;
+  }, [query.data?.consultation.status]);
+
+  return query;
 }
 
 function friendlyError(error: unknown, fallback: string): string {
@@ -73,8 +89,13 @@ export function useConsultationActions(id: string) {
       audioBlob: Blob | null;
       durationSeconds: number;
     }) => consultationService.stop(id, audioBlob, durationSeconds),
-    onSuccess: () => {
-      toast.success("Recording stopped. Ready for review.");
+    onSuccess: (_data, variables) => {
+      // If audio was captured the consultation moves to ai_processing, not
+      // pending_review — "ready for review" is only true without audio.
+      const message = variables.audioBlob
+        ? "Recording submitted. AI processing has started."
+        : "Recording stopped. Consultation is ready for review.";
+      toast.success(message);
       void invalidate();
     },
     onError: (error: unknown) => toast.error(friendlyError(error, "Unable to stop recording.")),

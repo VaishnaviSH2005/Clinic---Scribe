@@ -9,5 +9,5 @@ fi
 
 PY_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '^backend/.*\.py$' || true)
 if [ -n "$PY_FILES" ]; then
-  (cd backend && .venv/Scripts/python -m ruff check $(echo "$PY_FILES" | sed 's#^backend/##'))
+  (cd backend && .venv/Scripts/python -m ruff check --force-exclude $(echo "$PY_FILES" | sed 's#^backend/##'))
 fi

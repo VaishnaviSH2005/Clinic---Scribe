@@ -6,7 +6,17 @@ always import `settings` from this module instead.
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_INSECURE_JWT_SECRETS = {
+    "change-me-in-production",
+    "secret",
+    "changeme",
+    "development",
+    "",
+}
+_MIN_JWT_SECRET_LEN = 32
 
 
 class Settings(BaseSettings):
@@ -27,10 +37,37 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
     reset_token_expire_minutes: int = 15
-    access_token_cookie_name: str = "access_token"
-    refresh_token_cookie_name: str = "refresh_token"
-    cookie_secure: bool = False  # true in production (HTTPS only, PRD Ch20)
+    access_token_cookie_name: str = "cliniscribe_access"
+    refresh_token_cookie_name: str = "cliniscribe_refresh"
+    cookie_secure: bool = False  # must be True in production (HTTPS only, PRD Ch20)
     frontend_base_url: str = "http://localhost:3000"
+
+    @model_validator(mode="after")
+    def _enforce_production_security(self) -> "Settings":
+        """Refuse to start in production with an insecure JWT secret or without
+        secure cookies. In non-production environments a warning is logged instead
+        so local development is not blocked (PRD Ch20 / security audit T2-T3)."""
+        is_prod = self.environment == "production"
+        jwt_weak = self.jwt_secret.lower() in _INSECURE_JWT_SECRETS or len(self.jwt_secret) < _MIN_JWT_SECRET_LEN
+        if jwt_weak:
+            msg = (
+                "JWT_SECRET is insecure (known default or fewer than "
+                f"{_MIN_JWT_SECRET_LEN} characters). "
+                "Set a cryptographically random secret in your environment."
+            )
+            if is_prod:
+                raise ValueError(msg)
+            # Non-production: import lazily to avoid import-time side-effects
+            import warnings
+
+            warnings.warn(f"[CliniScribe] {msg}", stacklevel=2)
+
+        if is_prod and not self.cookie_secure:
+            raise ValueError(
+                "COOKIE_SECURE must be True in production to protect session cookies. "
+                "Set COOKIE_SECURE=true in your environment."
+            )
+        return self
 
     # Rate limiting (PRD Ch16.3)
     login_rate_limit_attempts: int = 5
@@ -40,6 +77,17 @@ class Settings(BaseSettings):
 
     # CORS
     cors_origins: str = "http://localhost:3000"
+
+    # Live (near-real-time) captions during a consultation (PRD Ch9.6). A separate worker
+    # process transcribes short audio chunks with a tiny, fast model; the accurate
+    # full-file transcript is still produced by the pipeline worker after Stop.
+    # Whisper always encodes a fixed 30 s window, so cost per chunk does not shrink with
+    # chunk length: measured on a laptop CPU, `small` needs ~10 s per chunk (far slower than
+    # real time), `base` ~2.7 s, `tiny` ~1.3 s. `tiny` keeps captions ~4 s behind speech.
+    live_audio_key: str = "cliniscribe:live:audio"
+    live_whisper_model_size: str = "tiny"
+    live_chunk_seconds: float = 2.5
+    live_language: str = ""  # "" = auto-detect (same as the final transcript)
 
     # AI (PRD Ch3.6 / Ch17)
     stt_provider: str = "faster_whisper"

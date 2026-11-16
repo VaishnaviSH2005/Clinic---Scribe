@@ -10,10 +10,12 @@ import { StartConsultationDialog } from "@/features/consultation/components/star
 import { useAuth } from "@/features/authentication/hooks/use-auth";
 import type { Patient } from "@/types/patient";
 
+import { useCanModifyPatients } from "../hospital-scope";
 import { PatientEditDialog } from "./patient-edit-dialog";
 
 export function PatientHeader({ patient }: { patient: Patient }) {
   const { user } = useAuth();
+  const canModify = useCanModifyPatients();
   const [editOpen, setEditOpen] = useState(false);
   const [consultationOpen, setConsultationOpen] = useState(false);
 
@@ -44,9 +46,11 @@ export function PatientHeader({ patient }: { patient: Patient }) {
             <Stethoscope className="h-4 w-4" /> Start consultation
           </Button>
         )}
-        <Button variant="secondary" onClick={() => setEditOpen(true)}>
-          <Pencil className="h-4 w-4" /> Edit details
-        </Button>
+        {canModify && (
+          <Button variant="secondary" onClick={() => setEditOpen(true)}>
+            <Pencil className="h-4 w-4" /> Edit details
+          </Button>
+        )}
       </div>
       <PatientEditDialog open={editOpen} onOpenChange={setEditOpen} patient={patient} />
       <StartConsultationDialog

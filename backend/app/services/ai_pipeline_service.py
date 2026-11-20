@@ -252,14 +252,52 @@ async def _build_context(
 
 
 def _build_claude_client():
-    from providers.claude import ClaudeClient
+    """Returns the LLM client for `settings.llm_provider` (name kept for existing callers).
 
-    return ClaudeClient(
-        api_key=settings.claude_api_key,
-        model=settings.claude_model,
-        timeout_seconds=settings.claude_timeout_seconds,
-        max_retries=settings.claude_max_retries,
-    )
+    `llm_provider` is a comma-separated list ("gemini,nvidia"); providers whose API key is
+    empty are skipped, and several configured providers become an ordered fallback chain.
+    With the default ("anthropic") this behaves exactly as before."""
+    from providers.claude import ClaudeClient, ClaudeProviderError
+    from providers.openai_compat import FallbackClient, OpenAICompatClient
+
+    names = [n.strip().lower() for n in settings.llm_provider.split(",") if n.strip()] or ["anthropic"]
+    common = {"timeout_seconds": settings.claude_timeout_seconds, "max_retries": settings.claude_max_retries}
+    clients: list = []
+    for name in names:
+        if name == "anthropic":
+            if settings.claude_api_key or len(names) == 1:
+                # Single-provider mode keeps the original "No Claude API key" error when unset.
+                clients.append(
+                    ClaudeClient(api_key=settings.claude_api_key, model=settings.claude_model, **common)
+                )
+        elif name == "gemini":
+            if settings.gemini_api_key:
+                clients.append(
+                    OpenAICompatClient(
+                        api_key=settings.gemini_api_key,
+                        model=settings.gemini_model,
+                        base_url=settings.gemini_base_url,
+                        provider_name="Gemini",
+                        **common,
+                    )
+                )
+        elif name == "nvidia":
+            if settings.nvidia_api_key:
+                clients.append(
+                    OpenAICompatClient(
+                        api_key=settings.nvidia_api_key,
+                        model=settings.nvidia_model,
+                        base_url=settings.nvidia_base_url,
+                        provider_name="NVIDIA",
+                        **common,
+                    )
+                )
+        else:
+            raise ClaudeProviderError(f"Unknown LLM_PROVIDER '{name}' (use anthropic, gemini or nvidia).")
+
+    if not clients:
+        raise ClaudeProviderError(f"No API key is configured for LLM_PROVIDER='{settings.llm_provider}'.")
+    return clients[0] if len(clients) == 1 else FallbackClient(clients)
 
 
 async def _stage_generate_soap(

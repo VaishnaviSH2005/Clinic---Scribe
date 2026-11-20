@@ -1,6 +1,6 @@
 """Centralized application configuration (PRD Ch4.12).
 
-Environment variables must never be read directly inside business logic —
+Environment variables must never be read directly inside business logic â€”
 always import `settings` from this module instead.
 """
 
@@ -91,6 +91,16 @@ class Settings(BaseSettings):
 
     # AI (PRD Ch3.6 / Ch17)
     stt_provider: str = "faster_whisper"
+    # Which LLM(s) write SOAP notes / summaries / recommendations / red flags. A comma-separated
+    # list is tried in order, e.g. "gemini,nvidia" (Gemini first, NVIDIA if Gemini fails).
+    # Allowed names: anthropic | gemini | nvidia. Default keeps the original Anthropic behaviour.
+    llm_provider: str = "anthropic"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
+    nvidia_api_key: str = ""
+    nvidia_model: str = "minimaxai/minimax-m3.1-flash"
+    nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
     claude_api_key: str = ""
     claude_model: str = "claude-sonnet-4-5"
     claude_max_retries: int = 2
@@ -101,7 +111,7 @@ class Settings(BaseSettings):
     ai_queue_key: str = "cliniscribe:ai_pipeline_queue"
     ai_stage_timeout_seconds: int = 120
 
-    # Storage (PRD Ch3.9) — local disk in development, S3 in production.
+    # Storage (PRD Ch3.9) â€” local disk in development, S3 in production.
     aws_s3_bucket: str = ""
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
